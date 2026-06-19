@@ -1,14 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword, 
     signOut, 
     onAuthStateChanged,
-    updateProfile,
-    GoogleAuthProvider,
-    signInWithPopup
+    updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Your web app's Firebase configuration
@@ -24,8 +22,26 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 const auth = getAuth(app);
+
+// Safe Analytics initialization that won't halt script execution if blocked (e.g. on mobile private browsing)
+let analytics = null;
+try {
+    isSupported()
+        .then((supported) => {
+            if (supported) {
+                analytics = getAnalytics(app);
+                console.log("PixelAI: Firebase Analytics initialized successfully.");
+            } else {
+                console.log("PixelAI: Firebase Analytics is not supported in this environment.");
+            }
+        })
+        .catch((error) => {
+            console.warn("PixelAI: Firebase Analytics support check failed:", error);
+        });
+} catch (error) {
+    console.warn("PixelAI: Firebase Analytics initialization failed:", error);
+}
 
 /**
  * PixelAI Studio - AI Image Generator Core Logic
@@ -276,13 +292,7 @@ function init() {
     safeBind(el.formLogin, "submit", handleLoginSubmit);
     safeBind(el.formSignup, "submit", handleSignupSubmit);
     
-    // Bind Google Auth buttons
-    const googleBtns = document.querySelectorAll(".btn-google-submit");
-    if (googleBtns && googleBtns.length > 0) {
-        googleBtns.forEach(btn => {
-            safeBind(btn, "click", handleGoogleAuth);
-        });
-    }
+
     
     // Close modal on backdrop click
     safeBind(el.authModal, "click", (e) => {
@@ -633,29 +643,7 @@ function handleSignupSubmit(e) {
         });
 }
 
-function handleGoogleAuth() {
-    showToast("Connecting to Google...", "info");
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-        .then((result) => {
-            const user = result.user;
-            closeAuthModal();
-            showToast(`Welcome, ${user.displayName || user.email}!`, "success");
-            switchView("studio");
-        })
-        .catch((error) => {
-            console.error("Google authentication failed:", error);
-            let message = "Google authentication failed";
-            if (error.code === "auth/popup-closed-by-user") {
-                message = "Sign-in popup closed before completion.";
-            } else if (error.code === "auth/cancelled-popup-request") {
-                message = "Sign-in request cancelled.";
-            } else if (error.code === "auth/unauthorized-domain") {
-                message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
-            }
-            showToast(message, "info");
-        });
-}
+
 
 // ==========================================================================
 // IMAGE GENERATION MODULE
