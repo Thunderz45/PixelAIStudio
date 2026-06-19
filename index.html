@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelAI Studio | Professional AI Image Generator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Remix Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles/main.css">
+    <!-- Razorpay Checkout SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+    <!-- PixelAI Wave Background Decor -->
+    <div class="pixelai-decor decor-1"></div>
+    <div class="pixelai-decor decor-2"></div>
+
+    <div class="app-layout">
+        <!-- PixelAI Minimal Header -->
+        <header class="app-header">
+            <div class="logo-area" id="nav-brand" style="cursor: pointer;">
+                <div class="logo-icon pixelai-gradient">
+                    <i class="ri-sparkling-fill"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>Pixel<span>AI</span></h1>
+                    <span class="sub-logo">Studio</span>
+                </div>
+            </div>
+            <!-- Navigation links -->
+            <nav class="nav-links">
+                <a href="#" id="link-home" class="nav-link active">Home</a>
+                <a href="#" id="link-studio" class="nav-link">Studio</a>
+                <div id="nav-user-stats" class="nav-user-stats hide">
+                    <span id="nav-credits-badge" class="credits-badge" style="cursor: pointer;" title="Manage subscription">
+                        <i class="ri-coin-line"></i> <span id="nav-credits-count">5</span> Credits
+                    </span>
+                    <span id="nav-pro-badge" class="pro-badge hide">PRO</span>
+                </div>
+                <button id="btn-auth-nav" class="btn-auth-outline">Sign In</button>
+            </nav>
+        </header>
+
+        <!-- Main Area with Views -->
+        <main class="workspace-centered">
+            
+            <!-- VIEW 1: LANDING HOME VIEW -->
+            <div id="view-home" class="page-view">
+                <section class="hero-section">
+                    <div class="hero-badge">
+                        <i class="ri-sparkling-line"></i> Powered by advanced image diffusion models
+                    </div>
+                    <h1 class="hero-title">Create professional visual concepts with <span>PixelAI Studio</span></h1>
+                    <p class="hero-subtitle">
+                        Describe what you want to see and select an artistic category. Generate vector illustrations, cartoons, photos, and 3D renderings in seconds.
+                    </p>
+                    <button id="hero-get-started-btn" class="btn-generate btn-hero">
+                        Get Started for Free <i class="ri-arrow-right-line"></i>
+                    </button>
+                </section>
+
+                <!-- Showcase Grid of styles -->
+                <section class="showcase-section">
+                    <h2 class="section-heading">Supported Art Categories</h2>
+                    <div class="showcase-grid">
+                        <div class="showcase-card" id="card-trigger-vector">
+                            <div class="showcase-img-box">
+                                <img src="https://image.pollinations.ai/prompt/beautiful%20vector%20art%20illustration%20of%20mountains%20and%20clouds%20sky%20blue%20and%20white%20minimalist%20flat%20design?width=400&height=300&seed=101&nologo=true" alt="Vector Art Preview">
+                                <div class="showcase-badge"><i class="ri-vector-line"></i> Vector</div>
+                            </div>
+                            <h3>Vector Art</h3>
+                            <p>Clean lineart, flat SVGs, and minimalist geometric shapes, ideal for web illustrations.</p>
+                        </div>
+                        <div class="showcase-card" id="card-trigger-cartoon">
+                            <div class="showcase-img-box">
+                                <img src="https://image.pollinations.ai/prompt/cute%20cartoon%20illustration%20of%20a%20happy%20cat%20soft%20sky%20blue%20background%20vibrant%20colors?width=400&height=300&seed=202&nologo=true" alt="Cartoon Preview">
+                                <div class="showcase-badge"><i class="ri-emotion-laugh-line"></i> Cartoon</div>
+                            </div>
+                            <h3>Cartoon</h3>
+                            <p>Cute cell-shaded characters, expressive animations, and 2D illustrations.</p>
+                        </div>
+                        <div class="showcase-card" id="card-trigger-photo">
+                            <div class="showcase-img-box">
+                                <img src="https://image.pollinations.ai/prompt/professional%20macro%20photograph%20of%20a%20glowing%20lightbulb%20clean%20sky%20blue%20and%20white%20backdrop?width=400&height=300&seed=303&nologo=true" alt="Photorealistic Preview">
+                                <div class="showcase-badge"><i class="ri-camera-lens-line"></i> Photo</div>
+                            </div>
+                            <h3>Photorealistic</h3>
+                            <p>Ultra-realistic photos, macro lens effects, studio lighting, and sharp focus.</p>
+                        </div>
+                        <div class="showcase-card" id="card-trigger-3d">
+                            <div class="showcase-img-box">
+                                <img src="https://image.pollinations.ai/prompt/gorgeous%203D%20render%20pixar%20style%20of%20a%20white%20ceramic%20teaset%20with%20soft%20sky%20blue%20shadows?width=400&height=300&seed=404&nologo=true" alt="3D Render Preview">
+                                <div class="showcase-badge"><i class="ri-shapes-line"></i> 3D Render</div>
+                            </div>
+                            <h3>3D Render</h3>
+                            <p>Stylized 3D graphics, Pixar-like clay models, octane rendering, and soft shadows.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- VIEW 2: STUDIO APP VIEW (Hidden by default) -->
+            <div id="view-studio" class="page-view hide">
+                <div class="studio-card">
+                    <!-- Step 1: Input prompt -->
+                    <div class="input-section">
+                        <!-- Studio Credits Status Dashboard -->
+                        <div class="studio-credits-dashboard">
+                            <div class="dashboard-info">
+                                <span class="dashboard-title">Available Balance</span>
+                                <div class="dashboard-metrics">
+                                    <span id="studio-credits-display" class="dashboard-value">5 Credits</span>
+                                    <span id="studio-plan-badge" class="plan-badge-free">Free Plan</span>
+                                </div>
+                            </div>
+                            <button type="button" id="btn-upgrade-studio" class="btn-upgrade-pricing">
+                                <i class="ri-vip-crown-line"></i> Upgrade
+                            </button>
+                        </div>
+
+                        <label for="prompt-input" class="field-label">What do you want to create?</label>
+                        <div class="textarea-wrapper">
+                            <textarea id="prompt-input" maxlength="400" placeholder="A futuristic city in the clouds, sky blue and white theme, highly detailed..."></textarea>
+                            <div class="textarea-actions">
+                                <span id="char-counter">0 / 400</span>
+                                <button id="clear-prompt-btn" class="btn-clear hide" title="Clear Text">
+                                    <i class="ri-close-line"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Style Categories Selection -->
+                        <div class="category-wrapper">
+                            <span class="field-label-sm">Select Style Category</span>
+                            <div class="category-grid">
+                                <button class="category-chip active" data-category="none">
+                                    <i class="ri-palette-line"></i> Default
+                                </button>
+                                <button class="category-chip" data-category="vector">
+                                    <i class="ri-vector-line"></i> Vector Art
+                                </button>
+                                <button class="category-chip" data-category="cartoon">
+                                    <i class="ri-emotion-laugh-line"></i> Cartoon
+                                </button>
+                                <button class="category-chip" data-category="photorealistic">
+                                    <i class="ri-camera-lens-line"></i> Photo
+                                </button>
+                                <button class="category-chip" data-category="3d-render">
+                                    <i class="ri-shapes-line"></i> 3D Render
+                                </button>
+                                <button class="category-chip" data-category="anime">
+                                    <i class="ri-brush-line"></i> Anime
+                                </button>
+                            </div>
+                        </div>
+
+                        <button id="generate-btn" class="btn-generate">
+                            <span class="btn-text">Generate Image</span>
+                            <i class="ri-magic-line"></i>
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Output display -->
+                    <div class="output-section">
+                        <div class="image-frame" id="image-frame">
+                            <!-- Empty State -->
+                            <div class="canvas-state empty-state" id="state-empty">
+                                <i class="ri-image-add-line"></i>
+                                <h3>Your masterpiece will appear here</h3>
+                                <p>Write a descriptive prompt above and click generate.</p>
+                              </div>
+
+                              <!-- Loading State -->
+                              <div class="canvas-state loading-state hide" id="state-loading">
+                                  <div class="spinner"></div>
+                                  <h3>Generating image...</h3>
+                                  <div class="log-feed">
+                                      <span id="log-text">Connecting to neural networks...</span>
+                                  </div>
+                              </div>
+
+                              <!-- Error State -->
+                              <div class="canvas-state error-state hide" id="state-error">
+                                  <i class="ri-error-warning-line"></i>
+                                  <h3>Generation failed</h3>
+                                  <p>The AI engine is currently busy. Please try again.</p>
+                              </div>
+
+                              <!-- Image Loaded -->
+                              <div class="image-wrapper hide" id="image-wrapper">
+                                  <img id="output-image" src="" alt="AI Generated Image">
+                              </div>
+                          </div>
+
+                          <!-- Actions -->
+                          <div class="action-buttons hide" id="action-buttons">
+                              <button id="download-btn" class="btn-action btn-download">
+                                  <i class="ri-download-2-line"></i> Download Image
+                              </button>
+                              <button id="copy-btn" class="btn-action btn-copy" title="Copy Prompt">
+                                  <i class="ri-file-copy-line"></i> Copy Prompt
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Educational Content Section -->
+                  <section class="info-section">
+                      <div class="info-header">
+                          <h2>Understanding AI Text-to-Image</h2>
+                          <p>Learn how modern neural networks transform written concepts into visual masterpieces.</p>
+                      </div>
+                      <div class="info-grid">
+                          <div class="info-card">
+                              <div class="info-icon"><i class="ri-chat-quote-line"></i></div>
+                              <h3>1. NLP Understanding</h3>
+                              <p>The AI parses your prompt text into structural tokens, matching concepts like color themes, shapes, materials, and styles.</p>
+                          </div>
+                          <div class="info-card">
+                              <div class="info-icon"><i class="ri-blur-off-line"></i></div>
+                              <h3>2. Diffusion Refinement</h3>
+                              <p>Starting with random visual noise, the model iteratively predicts and subtracts noise to sculpt realistic layouts.</p>
+                          </div>
+                          <div class="info-card">
+                              <div class="info-icon"><i class="ri-image-2-line"></i></div>
+                              <h3>3. Pixel Generation</h3>
+                              <p>The neural decoder synthesizes shapes, shadows, and textures, delivering the final high-definition artwork.</p>
+                          </div>
+                      </div>
+                      
+                      <div class="tips-box">
+                          <h3><i class="ri-lightbulb-line"></i> Tips for Perfect Prompts</h3>
+                          <ul>
+                              <li><strong>Be Specific:</strong> Details like <em>"minimalist vector landscape of a sunset over mountains"</em> work better than just <em>"mountains"</em>.</li>
+                              <li><strong>Use Color Keywords:</strong> Mention palettes, e.g. <em>"pastel color theme"</em> or <em>"monochromatic sky blue and white details"</em>.</li>
+                              <li><strong>Mention Category Elements:</strong> To reinforce style, specify details like <em>"clean lineart vector art illustration"</em> or <em>"3d claymation rendering"</em>.</li>
+                          </ul>
+                      </div>
+                  </section>
+              </div>
+          </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Powered by <strong>Pollinations AI</strong></p>
+        </footer>
+    </div>
+
+    <!-- Authentication Modal Backdrop -->
+    <div id="auth-modal" class="modal-backdrop hide">
+        <div class="auth-card">
+            <button id="auth-close-btn" class="modal-close-btn"><i class="ri-close-line"></i></button>
+            
+            <!-- Sparkle icon decoration -->
+            <div class="auth-header-logo pixelai-gradient">
+                <i class="ri-sparkling-fill"></i>
+            </div>
+
+
+            <!-- LOGIN VIEW -->
+            <div id="form-login-view">
+                <h2>Welcome back</h2>
+                <p class="auth-subtitle">Sign in to PixelAI Studio to start generating images.</p>
+                
+                <form id="form-login">
+                    <div class="form-group">
+                        <label for="login-email">Email Address</label>
+                        <input type="email" id="login-email" required placeholder="name@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn-generate btn-auth-submit">Sign In</button>
+                </form>
+                
+                <div class="auth-divider">
+                    <span>or</span>
+                </div>
+                <button type="button" class="btn-google-submit">
+                    <i class="ri-google-fill"></i> Continue with Google
+                </button>
+                
+                <p class="auth-switch">Don't have an account? <a href="#" id="switch-to-signup">Sign up</a></p>
+            </div>
+
+            <!-- SIGNUP VIEW (Hidden by default) -->
+            <div id="form-signup-view" class="hide">
+                <h2>Create account</h2>
+                <p class="auth-subtitle">Register to get free access to the image studio.</p>
+                
+                <form id="form-signup">
+                    <div class="form-group">
+                        <label for="signup-name">Full Name</label>
+                        <input type="text" id="signup-name" required placeholder="Alex Johnson">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">Email Address</label>
+                        <input type="email" id="signup-email" required placeholder="name@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" required placeholder="Min 6 characters" minlength="6">
+                    </div>
+                    <button type="submit" class="btn-generate btn-auth-submit">Create Account</button>
+                </form>
+                
+                <div class="auth-divider">
+                    <span>or</span>
+                </div>
+                <button type="button" class="btn-google-submit">
+                    <i class="ri-google-fill"></i> Continue with Google
+                </button>
+                
+                <p class="auth-switch">Already have an account? <a href="#" id="switch-to-login">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription & Pricing Modal -->
+    <div id="subscription-modal" class="modal-backdrop hide">
+        <div class="auth-card subscription-card">
+            <button id="sub-close-btn" class="modal-close-btn"><i class="ri-close-line"></i></button>
+            
+            <div class="sub-header">
+                <div class="auth-header-logo pixelai-gradient">
+                    <i class="ri-vip-crown-fill"></i>
+                </div>
+                <h2>PixelAI Creator Plans</h2>
+                <p class="auth-subtitle">Select a tier to scale your AI imaging capacity</p>
+            </div>
+            
+            <!-- Plans container -->
+            <div class="plans-container" id="plans-container-view">
+                <!-- Free Plan -->
+                <div class="plan-card active" id="plan-card-free">
+                    <div class="plan-header">
+                        <h3>Starter Free</h3>
+                        <div class="plan-price">₹0<span>/mo</span></div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><i class="ri-checkbox-circle-line"></i> 5 visual credits standard</li>
+                        <li><i class="ri-checkbox-circle-line"></i> Standard speed queue</li>
+                        <li><i class="ri-checkbox-circle-line"></i> Premium Clipdrop API</li>
+                    </ul>
+                    <button type="button" id="btn-free-active" class="btn-plan-action active-plan" disabled>Active</button>
+                </div>
+                
+                <!-- Pro Plan -->
+                <div class="plan-card pro-card" id="plan-card-pro">
+                    <div class="plan-badge-card">POPULAR</div>
+                    <div class="plan-header">
+                        <h3>Pro Creator</h3>
+                        <div class="plan-price">₹100<span>/mo</span></div>
+                    </div>
+                    <ul class="plan-features">
+                        <li><i class="ri-sparkling-line text-gradient"></i> <strong>Unlimited</strong> image generation</li>
+                        <li><i class="ri-checkbox-circle-line"></i> Instant priority processing</li>
+                        <li><i class="ri-checkbox-circle-line"></i> Commercial rights included</li>
+                    </ul>
+                    <button type="button" id="btn-subscribe-pro" class="btn-plan-action btn-subscribe-trigger">Upgrade Now</button>
+                    <button type="button" id="btn-cancel-pro" class="btn-plan-action btn-cancel-trigger hide">Cancel Sub</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Script File -->
+    <script type="module" src="scripts/app.js"></script>
+</body>
+</html>
