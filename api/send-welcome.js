@@ -1,3 +1,4 @@
+const nodemailer = require('nodemailer');
 const emailTemplate = require('./emailTemplate');
 
 module.exports = async function handler(req, res) {
@@ -19,10 +20,17 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
-  const resendApiKey = process.env.RESEND_API_KEY;
-  if (!resendApiKey) {
-    console.error('Missing RESEND_API_KEY environment variable.');
-    return res.status(500).json({ error: 'Mail service is not configured yet. Please set RESEND_API_KEY in Vercel.' });
+  // Get SMTP credentials from Vercel environment variables
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = process.env.SMTP_PORT;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  if (!smtpHost || !smtpPort || !smtpUser || !smtpPass) {
+    console.error('Missing SMTP configuration environment variables.');
+    return res.status(500).json({ 
+      error: 'SMTP mail service is not configured. Please configure SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS in Vercel settings.' 
+    });
   }
 
   try {
@@ -38,29 +46,31 @@ module.exports = async function handler(req, res) {
     htmlContent = htmlContent.replace(/src="images\/2fcc6b7420cbeb0685a89c7a68c635f1\.png"/g, `src="${absoluteOrigin}/email-assets/2fcc6b7420cbeb0685a89c7a68c635f1.png"`);
     htmlContent = htmlContent.replace(/src="images\/343b9a3afd264a9cbed272e60d4851e9\.png"/g, `src="${absoluteOrigin}/email-assets/343b9a3afd264a9cbed272e60d4851e9.png"`);
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`
-      },
-      body: JSON.stringify({
-        from: 'PixelAI Studio <onboarding@resend.dev>',
-        to: [email],
-        subject: `Welcome to PixelAI Studio, ${name || 'Creator'}!`,
-        html: htmlContent
-      })
+    // Create a Nodemailer transporter using SMTP credentials
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort, 10),
+      secure: parseInt(smtpPort, 10) === 465, // true for port 465, false for 587 or others
+      auth: {
+        user: smtpUser,
+        pass: smtpPass
+      }
     });
 
-    const resData = await response.json();
-    if (!response.ok) {
-      console.error('Resend API response error:', resData);
-      return res.status(response.status).json({ error: resData.message || 'Failed to send welcome email.' });
-    }
+    // Send mail
+    const mailOptions = {
+      from: `"PixelAI Studio" <${smtpUser}>`,
+      to: email,
+      subject: `Welcome to PixelAI Studio, ${name || 'Creator'}!`,
+      html: htmlContent
+    };
 
-    return res.status(200).json({ success: true, data: resData });
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Welcome email sent via SMTP successfully:', info.messageId);
+
+    return res.status(200).json({ success: true, messageId: info.messageId });
   } catch (error) {
-    console.error('Welcome email serverless exception:', error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error('Welcome email SMTP exception:', error);
+    return res.status(500).json({ error: error.message || 'Failed to send welcome email via SMTP.' });
   }
 };
