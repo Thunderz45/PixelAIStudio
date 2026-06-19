@@ -209,11 +209,10 @@ function init() {
         })
         .catch((error) => {
             console.error("Google redirect sign-in failure:", error);
-            let message = "Google authentication failed";
             if (error.code === "auth/unauthorized-domain") {
-                message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
+                const message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
+                showToast(message, "info");
             }
-            showToast(message, "info");
         });
 
     // Setup Firebase Auth State Listener
@@ -661,13 +660,7 @@ function handleGoogleAuth() {
     // Check if the device is a mobile browser
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    if (isMobile) {
-        signInWithRedirect(auth, provider)
-            .catch((error) => {
-                console.error("Google redirect sign-in request failed:", error);
-                showToast("Failed to initialize Google redirect login", "info");
-            });
-    } else {
+    const triggerPopupAuth = () => {
         signInWithPopup(auth, provider)
             .then((result) => {
                 const user = result.user;
@@ -676,7 +669,7 @@ function handleGoogleAuth() {
                 switchView("studio");
             })
             .catch((error) => {
-                console.error("Google authentication failed:", error);
+                console.error("Google popup authentication failed:", error);
                 let message = "Google authentication failed";
                 if (error.code === "auth/popup-closed-by-user") {
                     message = "Sign-in popup closed before completion.";
@@ -687,6 +680,17 @@ function handleGoogleAuth() {
                 }
                 showToast(message, "info");
             });
+    };
+
+    if (isMobile) {
+        signInWithRedirect(auth, provider)
+            .catch((error) => {
+                console.warn("Google redirect sign-in failed, falling back to popup flow:", error);
+                // Fallback to popup if redirect fails (e.g. cookies blocked)
+                triggerPopupAuth();
+            });
+    } else {
+        triggerPopupAuth();
     }
 }
 
