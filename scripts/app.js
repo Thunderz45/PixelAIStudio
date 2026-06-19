@@ -611,6 +611,30 @@ function handleLoginSubmit(e) {
         });
 }
 
+function triggerWelcomeEmail(email, name) {
+    fetch('/api/send-welcome', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            email: email,
+            name: name,
+            origin: window.location.origin
+        })
+    }).then(res => res.json())
+      .then(data => {
+          if (data.success) {
+              console.log('Welcome email dispatched successfully:', data);
+          } else {
+              console.warn('Failed to dispatch welcome email:', data.error);
+          }
+      })
+      .catch(err => {
+          console.error('Welcome email dispatch error:', err);
+      });
+}
+
 function handleSignupSubmit(e) {
     e.preventDefault();
     const name = el.signupName.value.trim();
@@ -627,6 +651,9 @@ function handleSignupSubmit(e) {
                 closeAuthModal();
                 showToast(`Welcome, ${name}! Account registered.`, "success");
                 switchView("studio");
+                
+                // Trigger welcome email dispatch
+                triggerWelcomeEmail(email, name);
             });
         })
         .catch((error) => {
