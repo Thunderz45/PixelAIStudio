@@ -650,6 +650,8 @@ function handleGoogleAuth() {
                 message = "Sign-in popup closed before completion.";
             } else if (error.code === "auth/cancelled-popup-request") {
                 message = "Sign-in request cancelled.";
+            } else if (error.code === "auth/unauthorized-domain") {
+                message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
             }
             showToast(message, "info");
         });
