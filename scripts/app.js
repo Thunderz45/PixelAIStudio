@@ -8,7 +8,9 @@ import {
     onAuthStateChanged,
     updateProfile,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Your web app's Firebase configuration
@@ -195,6 +197,25 @@ function safeBind(element, event, handler) {
 function init() {
     console.log("PixelAI: Initializing core application event listeners...");
     
+    // Handle redirect sign-in results (primarily for mobile devices)
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result && result.user) {
+                const user = result.user;
+                closeAuthModal();
+                showToast(`Welcome back, ${user.displayName || user.email}!`, "success");
+                switchView("studio");
+            }
+        })
+        .catch((error) => {
+            console.error("Google redirect sign-in failure:", error);
+            let message = "Google authentication failed";
+            if (error.code === "auth/unauthorized-domain") {
+                message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
+            }
+            showToast(message, "info");
+        });
+
     // Setup Firebase Auth State Listener
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -636,25 +657,37 @@ function handleSignupSubmit(e) {
 function handleGoogleAuth() {
     showToast("Connecting to Google...", "info");
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-        .then((result) => {
-            const user = result.user;
-            closeAuthModal();
-            showToast(`Welcome, ${user.displayName || user.email}!`, "success");
-            switchView("studio");
-        })
-        .catch((error) => {
-            console.error("Google authentication failed:", error);
-            let message = "Google authentication failed";
-            if (error.code === "auth/popup-closed-by-user") {
-                message = "Sign-in popup closed before completion.";
-            } else if (error.code === "auth/cancelled-popup-request") {
-                message = "Sign-in request cancelled.";
-            } else if (error.code === "auth/unauthorized-domain") {
-                message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
-            }
-            showToast(message, "info");
-        });
+    
+    // Check if the device is a mobile browser
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        signInWithRedirect(auth, provider)
+            .catch((error) => {
+                console.error("Google redirect sign-in request failed:", error);
+                showToast("Failed to initialize Google redirect login", "info");
+            });
+    } else {
+        signInWithPopup(auth, provider)
+            .then((result) => {
+                const user = result.user;
+                closeAuthModal();
+                showToast(`Welcome, ${user.displayName || user.email}!`, "success");
+                switchView("studio");
+            })
+            .catch((error) => {
+                console.error("Google authentication failed:", error);
+                let message = "Google authentication failed";
+                if (error.code === "auth/popup-closed-by-user") {
+                    message = "Sign-in popup closed before completion.";
+                } else if (error.code === "auth/cancelled-popup-request") {
+                    message = "Sign-in request cancelled.";
+                } else if (error.code === "auth/unauthorized-domain") {
+                    message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
+                }
+                showToast(message, "info");
+            });
+    }
 }
 
 // ==========================================================================
