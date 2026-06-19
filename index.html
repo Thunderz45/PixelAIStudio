@@ -33,10 +33,18 @@
                     <span class="sub-logo">Studio</span>
                 </div>
             </div>
+            <!-- Hamburger menu button visible on mobile -->
+            <button id="btn-menu-toggle" class="btn-menu-toggle" aria-label="Toggle Menu">
+                <i class="ri-menu-3-line"></i>
+            </button>
             <!-- Navigation links -->
-            <nav class="nav-links">
+            <nav class="nav-links" id="nav-links-menu">
+                <button id="btn-menu-close" class="btn-menu-close" aria-label="Close Menu">
+                    <i class="ri-close-line"></i>
+                </button>
                 <a href="#" id="link-home" class="nav-link active">Home</a>
                 <a href="#" id="link-studio" class="nav-link">Studio</a>
+                <a href="#" id="link-profile" class="nav-link hide">Profile</a>
                 <div id="nav-user-stats" class="nav-user-stats hide">
                     <span id="nav-credits-badge" class="credits-badge" style="cursor: pointer;" title="Manage subscription">
                         <i class="ri-coin-line"></i> <span id="nav-credits-count">5</span> Credits
@@ -244,6 +252,68 @@
                       </div>
                   </section>
               </div>
+
+              <!-- VIEW 3: PROFILE APP VIEW (Hidden by default) -->
+              <div id="view-profile" class="page-view hide">
+                  <div class="profile-layout">
+                      <!-- Left Sidebar Pane: Settings & Theme -->
+                      <div class="profile-sidebar">
+                          <div class="profile-card">
+                              <div class="profile-avatar">
+                                  <i class="ri-user-3-line"></i>
+                              </div>
+                              <h3 id="profile-display-name">Username</h3>
+                              <p id="profile-display-email">email@example.com</p>
+                              <span id="profile-display-badge" class="plan-badge-free">Free Plan</span>
+                          </div>
+                          
+                          <!-- Theme Toggle Card -->
+                          <div class="theme-card">
+                              <h4>Appearance</h4>
+                              <p class="card-desc">Choose your preferred workspace aesthetic.</p>
+                              <div class="theme-switch-wrapper">
+                                  <button id="btn-theme-light" class="btn-theme-toggle-chip active">
+                                      <i class="ri-sun-line"></i> Light
+                                  </button>
+                                  <button id="btn-theme-dark" class="btn-theme-toggle-chip">
+                                      <i class="ri-moon-line"></i> Dark
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <!-- Right Main Pane: History & Settings Update -->
+                      <div class="profile-main">
+                          <!-- Profile Settings Form -->
+                          <div class="settings-card">
+                              <h2 class="settings-heading">Account Settings</h2>
+                              <form id="form-update-profile">
+                                  <div class="form-group">
+                                      <label for="update-name">Display Name</label>
+                                      <input type="text" id="update-name" placeholder="Alex Johnson">
+                                  </div>
+                                  <button type="submit" class="btn-generate btn-update-submit">Save Settings</button>
+                              </form>
+                          </div>
+                          
+                          <!-- Generation History -->
+                          <div class="history-card">
+                              <div class="history-header">
+                                  <h2>Creation History</h2>
+                                  <button id="btn-clear-history" class="btn-clear-history">
+                                      <i class="ri-delete-bin-line"></i> Clear All
+                                  </button>
+                              </div>
+                              <div id="history-grid" class="history-grid">
+                                  <div class="history-empty-state">
+                                      <i class="ri-image-line"></i>
+                                      <p>Your generated visual creations will appear here.</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
           </main>
 
         <!-- Footer -->
@@ -356,6 +426,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile Navigation Drawer Backdrop -->
+    <div id="drawer-backdrop" class="drawer-backdrop hide"></div>
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="toast-container"></div>

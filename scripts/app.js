@@ -128,10 +128,29 @@ const el = {
     // View navigation elements
     get linkHome() { return document.getElementById("link-home"); },
     get linkStudio() { return document.getElementById("link-studio"); },
+    get linkProfile() { return document.getElementById("link-profile"); },
     get viewHome() { return document.getElementById("view-home"); },
     get viewStudio() { return document.getElementById("view-studio"); },
+    get viewProfile() { return document.getElementById("view-profile"); },
     get navBrand() { return document.getElementById("nav-brand"); },
     get heroGetStarted() { return document.getElementById("hero-get-started-btn"); },
+    
+    // Hamburger Menu & Backdrops
+    get btnMenuToggle() { return document.getElementById("btn-menu-toggle"); },
+    get btnMenuClose() { return document.getElementById("btn-menu-close"); },
+    get navLinksMenu() { return document.getElementById("nav-links-menu"); },
+    get drawerBackdrop() { return document.getElementById("drawer-backdrop"); },
+    
+    // Profile DOM Elements
+    get profileDisplayName() { return document.getElementById("profile-display-name"); },
+    get profileDisplayEmail() { return document.getElementById("profile-display-email"); },
+    get profileDisplayBadge() { return document.getElementById("profile-display-badge"); },
+    get btnThemeLight() { return document.getElementById("btn-theme-light"); },
+    get btnThemeDark() { return document.getElementById("btn-theme-dark"); },
+    get formUpdateProfile() { return document.getElementById("form-update-profile"); },
+    get updateName() { return document.getElementById("update-name"); },
+    get btnClearHistory() { return document.getElementById("btn-clear-history"); },
+    get historyGrid() { return document.getElementById("history-grid"); },
     
     // Showcase cards
     get cardVector() { return document.getElementById("card-trigger-vector"); },
@@ -194,6 +213,144 @@ const CATEGORY_PROMPTS = {
     "anime": ", vibrant anime style, clean lines, colorful visual shading, key visual"
 };
 
+// ==========================================================================
+// INDEXEDDB DATABASE FOR USER CREATION HISTORY
+// ==========================================================================
+const DB_NAME = "PixelAIHistoryDB";
+const STORE_NAME = "history";
+let dbConnection = null;
+
+function initHistoryDB() {
+    return new Promise((resolve) => {
+        try {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const database = e.target.result;
+                if (!database.objectStoreNames.contains(STORE_NAME)) {
+                    database.createObjectStore(STORE_NAME, { keyPath: "id" });
+                }
+            };
+            request.onsuccess = (e) => {
+                dbConnection = e.target.result;
+                resolve(dbConnection);
+            };
+            request.onerror = (e) => {
+                console.warn("IndexedDB failed to open:", e);
+                resolve(null);
+            };
+        } catch (error) {
+            console.warn("IndexedDB is not supported or blocked in this environment:", error);
+            resolve(null);
+        }
+    });
+}
+
+function saveGenerationToHistory(uid, prompt, category, seed, blob) {
+    if (!dbConnection) return;
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = () => {
+        try {
+            const base64Data = reader.result;
+            const transaction = dbConnection.transaction([STORE_NAME], "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            const item = {
+                id: `${uid}_${Date.now()}`,
+                uid: uid,
+                prompt: prompt,
+                category: category,
+                seed: seed,
+                imageData: base64Data,
+                timestamp: Date.now()
+            };
+            store.put(item);
+            console.log("Successfully saved generation to IndexedDB history.");
+        } catch (e) {
+            console.warn("Failed to write to IndexedDB:", e);
+        }
+    };
+}
+
+function getGenerationHistory(uid) {
+    return new Promise((resolve) => {
+        if (!dbConnection) return resolve([]);
+        try {
+            const transaction = dbConnection.transaction([STORE_NAME], "readonly");
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const all = request.result || [];
+                const filtered = all
+                    .filter(item => item.uid === uid)
+                    .sort((a, b) => b.timestamp - a.timestamp);
+                resolve(filtered);
+            };
+            request.onerror = () => resolve([]);
+        } catch (e) {
+            console.warn("IndexedDB read error:", e);
+            resolve([]);
+        }
+    });
+}
+
+function clearGenerationHistory(uid) {
+    return new Promise((resolve) => {
+        if (!dbConnection) return resolve(false);
+        try {
+            const transaction = dbConnection.transaction([STORE_NAME], "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const all = request.result || [];
+                const userItems = all.filter(item => item.uid === uid);
+                userItems.forEach(item => {
+                    store.delete(item.id);
+                });
+                resolve(true);
+            };
+            request.onerror = () => resolve(false);
+        } catch (e) {
+            console.warn("IndexedDB delete error:", e);
+            resolve(false);
+        }
+    });
+}
+
+// ==========================================================================
+// APPEARANCE & THEME SWITCHER
+// ==========================================================================
+function initTheme() {
+    const savedTheme = localStorage.getItem("pixelai_theme") || "light";
+    setTheme(savedTheme);
+}
+
+function setTheme(theme) {
+    if (theme === "dark") {
+        document.body.classList.add("dark-theme");
+        if (el.btnThemeDark) el.btnThemeDark.classList.add("active");
+        if (el.btnThemeLight) el.btnThemeLight.classList.remove("active");
+        localStorage.setItem("pixelai_theme", "dark");
+    } else {
+        document.body.classList.remove("dark-theme");
+        if (el.btnThemeLight) el.btnThemeLight.classList.add("active");
+        if (el.btnThemeDark) el.btnThemeDark.classList.remove("active");
+        localStorage.setItem("pixelai_theme", "light");
+    }
+}
+
+// ==========================================================================
+// MOBILE DRAWER sidebar CONTROL
+// ==========================================================================
+function toggleMobileMenu(isOpen) {
+    if (isOpen) {
+        el.navLinksMenu.classList.add("open");
+        el.drawerBackdrop.classList.remove("hide");
+    } else {
+        el.navLinksMenu.classList.remove("open");
+        el.drawerBackdrop.classList.add("hide");
+    }
+}
+
 // Helper to safely bind event listeners to DOM elements (preventing script crashes)
 function safeBind(element, event, handler) {
     if (element) {
@@ -210,6 +367,10 @@ function safeBind(element, event, handler) {
 // Setup Event Listeners
 function init() {
     console.log("PixelAI: Initializing core application event listeners...");
+    
+    // Initialize user themes and databases
+    initTheme();
+    initHistoryDB();
     
     // Setup Firebase Auth State Listener
     onAuthStateChanged(auth, (user) => {
@@ -230,6 +391,9 @@ function init() {
             const subKey = `pixelai_subscription_${user.uid}`;
             state.subscriptionStatus = localStorage.getItem(subKey) || "free";
             
+            // Show profile navigation link
+            if (el.linkProfile) el.linkProfile.classList.remove("hide");
+            
             updateNavForUser(state.currentUser);
             updateCreditsUI();
         } else {
@@ -237,6 +401,10 @@ function init() {
             state.currentUser = null;
             state.credits = 0;
             state.subscriptionStatus = "free";
+            
+            // Hide profile navigation link
+            if (el.linkProfile) el.linkProfile.classList.add("hide");
+            
             el.btnAuthNav.textContent = "Sign In";
             el.btnAuthNav.className = "btn-auth-outline";
             updateCreditsUI();
@@ -265,8 +433,14 @@ function init() {
     // Navigation triggers
     safeBind(el.linkHome, "click", (e) => { e.preventDefault(); switchView("home"); });
     safeBind(el.linkStudio, "click", (e) => { e.preventDefault(); switchView("studio"); });
+    safeBind(el.linkProfile, "click", (e) => { e.preventDefault(); switchView("profile"); });
     safeBind(el.navBrand, "click", () => switchView("home"));
     safeBind(el.heroGetStarted, "click", () => switchView("studio"));
+
+    // Hamburger Mobile Menu triggers
+    safeBind(el.btnMenuToggle, "click", () => toggleMobileMenu(true));
+    safeBind(el.btnMenuClose, "click", () => toggleMobileMenu(false));
+    safeBind(el.drawerBackdrop, "click", () => toggleMobileMenu(false));
 
     // Showcase card navigation triggers
     setupShowcaseTrigger(el.cardVector, "vector");
@@ -314,28 +488,47 @@ function init() {
     safeBind(el.subscriptionModal, "click", (e) => {
         if (e.target === el.subscriptionModal) closeSubscriptionModal();
     });
+
+    // Theme Switches
+    safeBind(el.btnThemeLight, "click", () => setTheme("light"));
+    safeBind(el.btnThemeDark, "click", () => setTheme("dark"));
+
+    // Profile Settings Update
+    safeBind(el.formUpdateProfile, "submit", handleUpdateProfile);
+    safeBind(el.btnClearHistory, "click", handleClearHistory);
     
     console.log("PixelAI: Event listeners configured successfully.");
 }
 
 // Navigation Helper with Login Guards
 function switchView(viewName) {
-    if (viewName === "studio" && !state.isLoggedIn) {
+    if ((viewName === "studio" || viewName === "profile") && !state.isLoggedIn) {
         openAuthModal("login");
-        showToast("Authentication required to access Studio.", "info");
+        showToast("Authentication required to access this section.", "info");
         return;
     }
 
+    // Close mobile menu when switching views
+    toggleMobileMenu(false);
+
+    el.viewHome.classList.add("hide");
+    el.viewStudio.classList.add("hide");
+    el.viewProfile.classList.add("hide");
+    
+    el.linkHome.classList.remove("active");
+    el.linkStudio.classList.remove("active");
+    el.linkProfile.classList.remove("active");
+
     if (viewName === "home") {
         el.viewHome.classList.remove("hide");
-        el.viewStudio.classList.add("hide");
         el.linkHome.classList.add("active");
-        el.linkStudio.classList.remove("active");
     } else if (viewName === "studio") {
-        el.viewHome.classList.add("hide");
         el.viewStudio.classList.remove("hide");
-        el.linkHome.classList.remove("active");
         el.linkStudio.classList.add("active");
+    } else if (viewName === "profile") {
+        el.viewProfile.classList.remove("hide");
+        el.linkProfile.classList.add("active");
+        renderProfilePage();
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -568,6 +761,145 @@ function handleCancelSubscription() {
     }
 }
 
+// ==========================================================================
+// USER PROFILE SETTINGS & HISTORIES RENDERERS
+// ==========================================================================
+
+function renderProfilePage() {
+    if (!auth.currentUser) return;
+    
+    const user = auth.currentUser;
+    el.profileDisplayName.textContent = user.displayName || "Studio Creator";
+    el.profileDisplayEmail.textContent = user.email;
+    el.updateName.value = user.displayName || "";
+
+    const isPro = state.subscriptionStatus === "pro";
+    if (isPro) {
+        el.profileDisplayBadge.className = "plan-badge-pro";
+        el.profileDisplayBadge.textContent = "Pro Plan";
+    } else {
+        el.profileDisplayBadge.className = "plan-badge-free";
+        el.profileDisplayBadge.textContent = "Free Plan";
+    }
+
+    // Fetch and render generation history
+    getGenerationHistory(user.uid).then(historyItems => {
+        el.historyGrid.innerHTML = "";
+        
+        if (historyItems.length === 0) {
+            el.historyGrid.innerHTML = `
+                <div class="history-empty-state">
+                    <i class="ri-image-line"></i>
+                    <p>Your generated visual creations will appear here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        historyItems.forEach(item => {
+            const itemEl = document.createElement("div");
+            itemEl.className = "history-item";
+            
+            const formattedDate = new Date(item.timestamp).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            itemEl.innerHTML = `
+                <div class="history-img-box">
+                    <img src="${item.imageData}" alt="Generated AI artwork">
+                </div>
+                <div class="history-info">
+                    <p class="history-prompt" title="${item.prompt}">${item.prompt}</p>
+                    <div class="history-meta">
+                        <span class="history-style">${item.category === "none" ? "Default" : item.category}</span>
+                        <span>${formattedDate}</span>
+                    </div>
+                </div>
+                <div class="history-actions">
+                    <button class="btn-history-action btn-hist-download" data-id="${item.id}">
+                        <i class="ri-download-2-line"></i> Download
+                    </button>
+                    <button class="btn-history-action btn-hist-copy" data-prompt="${item.prompt}">
+                        <i class="ri-file-copy-line"></i> Copy
+                    </button>
+                </div>
+            `;
+            
+            // Bind action buttons
+            itemEl.querySelector(".btn-hist-download").addEventListener("click", () => {
+                downloadBase64Image(item.imageData, item.prompt, item.seed);
+            });
+            itemEl.querySelector(".btn-hist-copy").addEventListener("click", () => {
+                navigator.clipboard.writeText(item.prompt).then(() => {
+                    showToast("Prompt copied to clipboard!", "success");
+                });
+            });
+
+            el.historyGrid.appendChild(itemEl);
+        });
+    });
+}
+
+function downloadBase64Image(base64Data, prompt, seed) {
+    try {
+        const link = document.createElement("a");
+        link.href = base64Data;
+        const cleanPrompt = prompt.trim()
+            .substring(0, 30)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-");
+        link.download = `pixelai-studio-${cleanPrompt}-${seed || 'history'}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast("Image downloaded successfully!", "success");
+    } catch (err) {
+        console.error("History download failed:", err);
+        showToast("Failed to download image", "info");
+    }
+}
+
+function handleUpdateProfile(e) {
+    e.preventDefault();
+    if (!auth.currentUser) return;
+    
+    const newName = el.updateName.value.trim();
+    if (!newName) {
+        showToast("Display name cannot be empty.", "info");
+        return;
+    }
+
+    showToast("Saving settings...", "info");
+    updateProfile(auth.currentUser, {
+        displayName: newName
+    }).then(() => {
+        state.currentUser = newName;
+        updateNavForUser(newName);
+        el.profileDisplayName.textContent = newName;
+        showToast("Profile settings updated successfully!", "success");
+    }).catch(err => {
+        console.error("Profile update error:", err);
+        showToast("Failed to update profile settings.", "info");
+    });
+}
+
+function handleClearHistory() {
+    if (!auth.currentUser) return;
+    if (confirm("Are you sure you want to clear your creation history? This action cannot be undone.")) {
+        clearGenerationHistory(auth.currentUser.uid).then(success => {
+            if (success) {
+                renderProfilePage();
+                showToast("Creation history cleared successfully.", "success");
+            } else {
+                showToast("Failed to clear creation history.", "info");
+            }
+        });
+    }
+}
+
 function handleAuthNavClick() {
     if (state.isLoggedIn) {
         showToast("Signing out...", "info");
@@ -785,6 +1117,9 @@ function generateImage() {
             }
             
             showToast("Visual generated successfully!", "success");
+
+            // Save to IndexedDB local history
+            saveGenerationToHistory(auth.currentUser.uid, state.prompt, state.category, state.seed, blob);
 
             // Clean up button state
             state.isGenerating = false;
