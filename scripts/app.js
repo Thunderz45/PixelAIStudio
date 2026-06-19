@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
@@ -8,9 +8,7 @@ import {
     onAuthStateChanged,
     updateProfile,
     GoogleAuthProvider,
-    signInWithPopup,
-    signInWithRedirect,
-    getRedirectResult
+    signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Your web app's Firebase configuration
@@ -26,22 +24,8 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 const auth = getAuth(app);
-
-// Safe Analytics initialization that won't halt script execution if blocked (e.g. on mobile private browsing)
-let analytics = null;
-isSupported()
-    .then((supported) => {
-        if (supported) {
-            analytics = getAnalytics(app);
-            console.log("PixelAI: Firebase Analytics initialized successfully.");
-        } else {
-            console.log("PixelAI: Firebase Analytics is not supported in this environment.");
-        }
-    })
-    .catch((error) => {
-        console.warn("PixelAI: Firebase Analytics support check failed:", error);
-    });
 
 /**
  * PixelAI Studio - AI Image Generator Core Logic
@@ -211,24 +195,6 @@ function safeBind(element, event, handler) {
 function init() {
     console.log("PixelAI: Initializing core application event listeners...");
     
-    // Handle redirect sign-in results (primarily for mobile devices)
-    getRedirectResult(auth)
-        .then((result) => {
-            if (result && result.user) {
-                const user = result.user;
-                closeAuthModal();
-                showToast(`Welcome back, ${user.displayName || user.email}!`, "success");
-                switchView("studio");
-            }
-        })
-        .catch((error) => {
-            console.error("Google redirect sign-in failure:", error);
-            if (error.code === "auth/unauthorized-domain") {
-                const message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
-                showToast(message, "info");
-            }
-        });
-
     // Setup Firebase Auth State Listener
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -670,51 +636,24 @@ function handleSignupSubmit(e) {
 function handleGoogleAuth() {
     showToast("Connecting to Google...", "info");
     const provider = new GoogleAuthProvider();
-    
-    // We try to sign in with Popup first (even on mobile).
-    // Tapping "Continue with Google" is a direct user gesture, so mobile browsers
-    // (Safari/Chrome) will allow the popup or prompt the user to allow it.
-    // Popup flow is much more reliable in privacy-restrictive mobile environments
-    // than Redirect flow because it doesn't fail on third-party cookie/storage blocking.
     signInWithPopup(auth, provider)
         .then((result) => {
             const user = result.user;
             closeAuthModal();
-            showToast(`Welcome back, ${user.displayName || user.email}!`, "success");
+            showToast(`Welcome, ${user.displayName || user.email}!`, "success");
             switchView("studio");
         })
         .catch((error) => {
-            console.error("Google popup authentication failed:", error);
-            
-            // If the popup is blocked, try redirect flow as a fallback
-            if (error.code === "auth/popup-blocked") {
-                showToast("Pop-up blocked. Trying redirect sign-in...", "info");
-                signInWithRedirect(auth, provider).catch((redirectError) => {
-                    console.error("Google redirect fallback failure:", redirectError);
-                    showToast("Redirect sign-in failed. Please enable pop-ups or use Email/Password.", "info");
-                });
-            } else if (error.code === "auth/popup-closed-by-user") {
-                showToast("Sign-in popup closed before completion.", "info");
+            console.error("Google authentication failed:", error);
+            let message = "Google authentication failed";
+            if (error.code === "auth/popup-closed-by-user") {
+                message = "Sign-in popup closed before completion.";
             } else if (error.code === "auth/cancelled-popup-request") {
-                showToast("Sign-in request cancelled.", "info");
+                message = "Sign-in request cancelled.";
             } else if (error.code === "auth/unauthorized-domain") {
-                const message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
-                showToast(message, "info");
-            } else if (error.code === "auth/web-storage-unsupported" || error.code === "auth/operation-not-supported-in-this-environment") {
-                // If popup fails due to web storage limits (e.g. private browsing), attempt redirect fallback as last resort
-                showToast("Storage restricted. Attempting redirect sign-in...", "info");
-                signInWithRedirect(auth, provider).catch((redirectError) => {
-                    console.error("Redirect fallback failed:", redirectError);
-                    showToast("Login restricted by browser settings. Please disable Private Browsing or use Email/Password.", "info");
-                });
-            } else {
-                // For any other popup error, attempt redirect fallback as a general safety net
-                showToast("Trying redirect fallback...", "info");
-                signInWithRedirect(auth, provider).catch((redirectError) => {
-                    console.error("Redirect fallback failed:", redirectError);
-                    showToast(`Google login error: ${error.message || error.code}`, "info");
-                });
+                message = "Domain unauthorized. Add this Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized Domains.";
             }
+            showToast(message, "info");
         });
 }
 
