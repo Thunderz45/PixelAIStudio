@@ -124,7 +124,7 @@ const state = {
     currentUser: null,
     
     // Credits & Subscription States
-    credits: 0,
+    credits: 5,
     subscriptionStatus: "free" // "free" or "pro"
 };
 
@@ -535,6 +535,10 @@ function init() {
             
             updateNavForUser(state.currentUser);
             
+            // Initialize credits to 5 immediately to prevent 0 credits race conditions before sync
+            state.credits = 5;
+            updateCreditsUI();
+            
             // Sync user data (credits & subscription) with Firestore
             await syncUserDataWithFirestore(user);
         } else {
@@ -758,7 +762,7 @@ function updateNavForUser(username) {
 // Sync user data (credits & subscription) with Firestore via real-time listener
 function syncUserDataWithFirestore(user) {
     if (!db) {
-        state.credits = 0;
+        state.credits = 5;
         state.subscriptionStatus = "free";
         updateCreditsUI();
         return;
@@ -783,6 +787,11 @@ function syncUserDataWithFirestore(user) {
             // First time logging in or missing server doc, create it with 5 credits
             isNewUser = true;
             try {
+                // Immediately set state.credits to 5 and update UI to avoid race condition/delay
+                state.credits = 5;
+                state.subscriptionStatus = "free";
+                updateCreditsUI();
+                
                 await setDoc(userDocRef, {
                     uid: user.uid,
                     email: user.email,
@@ -822,7 +831,7 @@ async function deductCreditTransaction(uid, actionName) {
             throw new Error("User profile not found in database.");
         }
         
-        const currentCredits = userDoc.data().credits !== undefined ? userDoc.data().credits : 100;
+        const currentCredits = userDoc.data().credits !== undefined ? userDoc.data().credits : 5;
         if (currentCredits < 1) {
             throw new Error("Insufficient credits.");
         }
@@ -854,7 +863,7 @@ async function refundCreditTransaction(uid, actionName) {
         await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userDocRef);
             if (userDoc.exists()) {
-                const currentCredits = userDoc.data().credits !== undefined ? userDoc.data().credits : 100;
+                const currentCredits = userDoc.data().credits !== undefined ? userDoc.data().credits : 5;
                 transaction.update(userDocRef, {
                     credits: currentCredits + 1,
                     updatedAt: Date.now()
