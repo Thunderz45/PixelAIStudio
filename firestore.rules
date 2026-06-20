@@ -14,9 +14,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId);
       
-      // Allow creation only if the signed-in user is creating their own profile with 100 default credits
+      // Allow creation only if the signed-in user is creating their own profile with 5 default credits
       allow create: if isOwner(userId) && 
-                    request.resource.data.credits == 100 &&
+                    request.resource.data.credits == 5 &&
                     request.resource.data.subscriptionStatus == 'free';
                     
       // Allow profile and credit updates if owner is authenticated

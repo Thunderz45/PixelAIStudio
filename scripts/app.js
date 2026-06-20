@@ -776,18 +776,18 @@ function syncUserDataWithFirestore(user) {
         let isNewUser = false;
         if (docSnap.exists()) {
             const data = docSnap.data();
-            state.credits = data.credits !== undefined ? data.credits : 100;
+            state.credits = data.credits !== undefined ? data.credits : 5;
             state.subscriptionStatus = data.subscriptionStatus || "free";
             updateCreditsUI();
         } else {
-            // First time logging in or missing server doc, create it with 100 credits
+            // First time logging in or missing server doc, create it with 5 credits
             isNewUser = true;
             try {
                 await setDoc(userDocRef, {
                     uid: user.uid,
                     email: user.email,
                     displayName: user.displayName || "",
-                    credits: 100,
+                    credits: 5,
                     subscriptionStatus: "free",
                     createdAt: Date.now(),
                     updatedAt: Date.now()
