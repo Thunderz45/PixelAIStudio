@@ -17,7 +17,9 @@ import {
     getDocs, 
     deleteDoc, 
     query, 
-    orderBy 
+    orderBy,
+    runTransaction,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { 
     getStorage, 
@@ -251,6 +253,7 @@ const CATEGORY_PROMPTS = {
 const DB_NAME = "PixelAIHistoryDB";
 const STORE_NAME = "history";
 let dbConnection = null;
+let unsubscribeCredits = null;
 
 function initHistoryDB() {
     return new Promise((resolve) => {
@@ -535,6 +538,12 @@ function init() {
             // Sync user data (credits & subscription) with Firestore
             await syncUserDataWithFirestore(user);
         } else {
+            // Unsubscribe from real-time credits updates on logout
+            if (unsubscribeCredits) {
+                unsubscribeCredits();
+                unsubscribeCredits = null;
+            }
+            
             state.isLoggedIn = false;
             state.currentUser = null;
             state.credits = 0;
@@ -746,96 +755,121 @@ function updateNavForUser(username) {
     el.btnAuthNav.className = "btn-auth-outline active-session";
 }
 
-// Sync user data (credits & subscription) with Firestore
-async function syncUserDataWithFirestore(user) {
-    let isNewUser = false;
+// Sync user data (credits & subscription) with Firestore via real-time listener
+function syncUserDataWithFirestore(user) {
     if (!db) {
-        // Fallback to localStorage if Firestore failed to initialize
-        const creditKey = `pixelai_credits_${user.uid}`;
-        let userCredits = localStorage.getItem(creditKey);
-        if (userCredits === null) {
-            isNewUser = true;
-            userCredits = "5";
-            localStorage.setItem(creditKey, userCredits);
-        }
-        state.credits = parseInt(userCredits, 10);
-        state.subscriptionStatus = localStorage.getItem(`pixelai_subscription_${user.uid}`) || "free";
+        state.credits = 0;
+        state.subscriptionStatus = "free";
         updateCreditsUI();
+        return;
+    }
+    
+    const userDocRef = doc(db, "users", user.uid);
+    
+    // Clean up any existing listener first
+    if (unsubscribeCredits) {
+        unsubscribeCredits();
+        unsubscribeCredits = null;
+    }
+    
+    unsubscribeCredits = onSnapshot(userDocRef, async (docSnap) => {
+        let isNewUser = false;
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            state.credits = data.credits !== undefined ? data.credits : 100;
+            state.subscriptionStatus = data.subscriptionStatus || "free";
+            updateCreditsUI();
+        } else {
+            // First time logging in or missing server doc, create it with 100 credits
+            isNewUser = true;
+            try {
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || "",
+                    credits: 100,
+                    subscriptionStatus: "free",
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                });
+            } catch (err) {
+                console.warn("Failed to create user document in Firestore:", err);
+            }
+        }
         
+        // Trigger welcome credits popup if this is a new user
         const welcomeShownKey = `pixelai_welcome_shown_${user.uid}`;
         if (isNewUser && !localStorage.getItem(welcomeShownKey)) {
             localStorage.setItem(welcomeShownKey, "true");
             showWelcomeCreditsPopup();
         }
-        return;
-    }
-    
-    try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        let localCredits = localStorage.getItem(`pixelai_credits_${user.uid}`);
-        let localSub = localStorage.getItem(`pixelai_subscription_${user.uid}`);
-        
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            // Server data takes priority
-            state.credits = data.credits !== undefined ? data.credits : 5;
-            state.subscriptionStatus = data.subscriptionStatus || "free";
-            
-            // Update local storage to match
-            localStorage.setItem(`pixelai_credits_${user.uid}`, state.credits.toString());
-            localStorage.setItem(`pixelai_subscription_${user.uid}`, state.subscriptionStatus);
-        } else {
-            // First time logging in or no server data, push local data to Firestore
-            isNewUser = true;
-            const creditsToSave = localCredits !== null ? parseInt(localCredits, 10) : 5;
-            const subToSave = localSub || "free";
-            
-            state.credits = creditsToSave;
-            state.subscriptionStatus = subToSave;
-            
-            await setDoc(userDocRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName || "",
-                credits: creditsToSave,
-                subscriptionStatus: subToSave,
-                updatedAt: Date.now()
-            });
-            
-            localStorage.setItem(`pixelai_credits_${user.uid}`, creditsToSave.toString());
-            localStorage.setItem(`pixelai_subscription_${user.uid}`, subToSave);
-        }
-    } catch (err) {
-        console.warn("Firestore user sync failed, falling back to localStorage:", err);
-        const creditKey = `pixelai_credits_${user.uid}`;
-        let userCredits = localStorage.getItem(creditKey);
-        if (userCredits === null) {
-            isNewUser = true;
-            userCredits = "5";
-            localStorage.setItem(creditKey, userCredits);
-        }
-        state.credits = parseInt(userCredits, 10);
-        state.subscriptionStatus = localStorage.getItem(`pixelai_subscription_${user.uid}`) || "free";
-    }
-    updateCreditsUI();
-    
-    // Trigger welcome popup
-    const welcomeShownKey = `pixelai_welcome_shown_${user.uid}`;
-    if (isNewUser && !localStorage.getItem(welcomeShownKey)) {
-        localStorage.setItem(welcomeShownKey, "true");
-        showWelcomeCreditsPopup();
-    }
+    }, (err) => {
+        console.warn("Real-time credits sync listener failed:", err);
+    });
 }
 
-async function updateUserCreditsInFirestore(uid, credits) {
+// Centered credit deduction using Firestore Transactions
+async function deductCreditTransaction(uid, actionName) {
+    if (!db) throw new Error("Firestore is not initialized.");
+    
+    const userDocRef = doc(db, "users", uid);
+    const transactionCollRef = collection(db, "credit_transactions");
+    const newTxDocRef = doc(transactionCollRef); // Auto-ID document reference
+    
+    await runTransaction(db, async (transaction) => {
+        const userDoc = await transaction.get(userDocRef);
+        if (!userDoc.exists()) {
+            throw new Error("User profile not found in database.");
+        }
+        
+        const currentCredits = userDoc.data().credits !== undefined ? userDoc.data().credits : 100;
+        if (currentCredits < 1) {
+            throw new Error("Insufficient credits.");
+        }
+        
+        // 1. Decrement user's credits
+        transaction.update(userDocRef, {
+            credits: currentCredits - 1,
+            updatedAt: Date.now()
+        });
+        
+        // 2. Write new log to credit_transactions
+        transaction.set(newTxDocRef, {
+            userId: uid,
+            action: actionName,
+            creditsUsed: 1,
+            timestamp: Date.now()
+        });
+    });
+}
+
+// Centered credit refund using Firestore Transactions (in case generation fails)
+async function refundCreditTransaction(uid, actionName) {
     if (!db) return;
     try {
         const userDocRef = doc(db, "users", uid);
-        await setDoc(userDocRef, { credits, updatedAt: Date.now() }, { merge: true });
+        const transactionCollRef = collection(db, "credit_transactions");
+        const newTxDocRef = doc(transactionCollRef);
+        
+        await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (userDoc.exists()) {
+                const currentCredits = userDoc.data().credits !== undefined ? userDoc.data().credits : 100;
+                transaction.update(userDocRef, {
+                    credits: currentCredits + 1,
+                    updatedAt: Date.now()
+                });
+                transaction.set(newTxDocRef, {
+                    userId: uid,
+                    action: actionName,
+                    creditsUsed: -1, // negative implies refund / credit increment
+                    timestamp: Date.now()
+                });
+            }
+        });
+        console.log("Credit transaction successfully refunded.");
     } catch (err) {
-        console.warn("Failed to update credits in Firestore:", err);
+        console.warn("Failed to refund credit transaction:", err);
     }
 }
 
@@ -1291,7 +1325,7 @@ function handleSignupSubmit(e) {
 // IMAGE GENERATION MODULE
 // ==========================================================================
 
-function generateImage() {
+async function generateImage() {
     if (!state.isLoggedIn) {
         openAuthModal("login");
         showToast("You must sign in to generate images.", "info");
@@ -1318,6 +1352,34 @@ function generateImage() {
 
     if (state.isGenerating) return;
     state.isGenerating = true;
+
+    // Deduct credit using Firestore Transaction (Free tier only)
+    if (!isPro) {
+        try {
+            showToast("Checking and deducting credit...", "info");
+            await deductCreditTransaction(auth.currentUser.uid, "image_generation");
+        } catch (err) {
+            console.error("Credit transaction failed:", err);
+            showToast(err.message || "Failed to deduct credit.", "info");
+            state.isGenerating = false;
+            return;
+        }
+    } else {
+        // Log Pro generation for audit trail (0 credits)
+        try {
+            const transactionCollRef = collection(db, "credit_transactions");
+            const newTxDocRef = doc(transactionCollRef);
+            await setDoc(newTxDocRef, {
+                userId: auth.currentUser.uid,
+                action: "image_generation_pro",
+                creditsUsed: 0,
+                timestamp: Date.now()
+            });
+        } catch (err) {
+            console.warn("Failed to write pro audit log:", err);
+        }
+    }
+
     state.prompt = rawPrompt;
     state.seed = Math.floor(Math.random() * 999999999);
 
@@ -1392,14 +1454,6 @@ function generateImage() {
             el.imageFrame.classList.remove("loading-active");
             el.actionButtons.classList.remove("hide");
             
-            // Deduct credit if free tier
-            if (!isPro) {
-                state.credits = Math.max(0, state.credits - 1);
-                localStorage.setItem(`pixelai_credits_${auth.currentUser.uid}`, state.credits.toString());
-                updateCreditsUI();
-                updateUserCreditsInFirestore(auth.currentUser.uid, state.credits);
-            }
-            
             showToast("Visual generated successfully!", "success");
 
             // Save to IndexedDB local history
@@ -1410,13 +1464,19 @@ function generateImage() {
             el.generateBtn.disabled = false;
             el.generateBtn.querySelector(".btn-text").textContent = "Generate Image";
         })
-        .catch((error) => {
+        .catch(async (error) => {
             clearInterval(logInterval);
             console.error("AI Image generation failure: ", error);
             showCanvasState("error");
             el.imageFrame.classList.remove("loading-active");
             
-            showToast("Failed to generate image. Please try again.", "info");
+            // Refund the credit (Free tier only)
+            if (!isPro) {
+                showToast("Generation failed. Refunding credit...", "info");
+                await refundCreditTransaction(auth.currentUser.uid, "image_generation_refund");
+            } else {
+                showToast("Failed to generate image. Please try again.", "info");
+            }
 
             state.isGenerating = false;
             el.generateBtn.disabled = false;
