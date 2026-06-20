@@ -11,26 +11,35 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    // Helper check to verify if the requestor is an admin
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == 'admin@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+    }
+
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       
       // Allow creation only if the signed-in user is creating their own profile with 5 default credits
       allow create: if isOwner(userId) && 
                     request.resource.data.credits == 5 &&
                     request.resource.data.subscriptionStatus == 'free';
                     
-      // Allow profile and credit updates if owner is authenticated
-      allow update: if isOwner(userId);
+      // Allow profile and credit updates if owner or admin
+      allow update: if isOwner(userId) || isAdmin();
       
       // Users cannot delete their accounts/credit profiles directly
       allow delete: if false;
     }
 
     match /credit_transactions/{txId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
-      // Allow creation of transactions only if the transaction logs belong to the authenticated owner
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      // Allow creation of transactions only if the transaction logs belong to the authenticated owner or admin
+      allow create: if signedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
       
       // Credit logs are audit trails and should never be updated or deleted
       allow update, delete: if false;
