@@ -8,6 +8,23 @@ import {
     onAuthStateChanged,
     updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    getFirestore, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    collection, 
+    getDocs, 
+    deleteDoc, 
+    query, 
+    orderBy 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { 
+    getStorage, 
+    ref as storageRef, 
+    uploadBytes, 
+    getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -23,6 +40,17 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+// Initialize Firebase Services with Safe Fallbacks
+let db = null;
+let storage = null;
+try {
+    db = getFirestore(app);
+    storage = getStorage(app);
+    console.log("PixelAI: Firestore and Storage services initialized successfully.");
+} catch (error) {
+    console.warn("PixelAI: Firestore or Storage failed to initialize:", error);
+}
 
 // Safe Analytics initialization that won't halt script execution if blocked (e.g. on mobile private browsing)
 let analytics = null;
@@ -200,7 +228,11 @@ const el = {
     get btnSubscribePro() { return document.getElementById("btn-subscribe-pro"); },
     get btnCancelPro() { return document.getElementById("btn-cancel-pro"); },
     get planCardFree() { return document.getElementById("plan-card-free"); },
-    get planCardPro() { return document.getElementById("plan-card-pro"); }
+    get planCardPro() { return document.getElementById("plan-card-pro"); },
+    
+    // Welcome Credits Modal Elements
+    get welcomeCreditsModal() { return document.getElementById("welcome-credits-modal"); },
+    get welcomeCreditsCloseBtn() { return document.getElementById("welcome-credits-close-btn"); }
 };
 
 // Category style prompt modifier mappings
@@ -245,75 +277,192 @@ function initHistoryDB() {
     });
 }
 
-function saveGenerationToHistory(uid, prompt, category, seed, blob) {
-    if (!dbConnection) return;
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = () => {
-        try {
-            const base64Data = reader.result;
-            const transaction = dbConnection.transaction([STORE_NAME], "readwrite");
-            const store = transaction.objectStore(STORE_NAME);
-            const item = {
-                id: `${uid}_${Date.now()}`,
-                uid: uid,
-                prompt: prompt,
-                category: category,
-                seed: seed,
-                imageData: base64Data,
-                timestamp: Date.now()
-            };
-            store.put(item);
-            console.log("Successfully saved generation to IndexedDB history.");
-        } catch (e) {
-            console.warn("Failed to write to IndexedDB:", e);
-        }
-    };
+async function saveGenerationToFirestore(uid, itemId, prompt, category, seed, blob) {
+    if (!db || !storage) return null;
+    try {
+        // 1. Upload the image blob to Firebase Storage
+        const imageRef = storageRef(storage, `users/${uid}/generations/${itemId}.jpg`);
+        const snapshot = await uploadBytes(imageRef, blob);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        // 2. Save metadata to Firestore
+        const historyDocRef = doc(db, "users", uid, "history", itemId);
+        const item = {
+            id: itemId,
+            uid: uid,
+            prompt: prompt,
+            category: category,
+            seed: seed,
+            imageUrl: downloadURL,
+            timestamp: Date.now()
+        };
+        await setDoc(historyDocRef, item);
+        console.log("Successfully saved generation to Firestore and Storage.");
+        return downloadURL;
+    } catch (err) {
+        console.warn("Firestore/Storage history save failed:", err);
+        return null;
+    }
 }
 
-function getGenerationHistory(uid) {
-    return new Promise((resolve) => {
-        if (!dbConnection) return resolve([]);
-        try {
-            const transaction = dbConnection.transaction([STORE_NAME], "readonly");
-            const store = transaction.objectStore(STORE_NAME);
-            const request = store.getAll();
-            request.onsuccess = () => {
-                const all = request.result || [];
-                const filtered = all
-                    .filter(item => item.uid === uid)
-                    .sort((a, b) => b.timestamp - a.timestamp);
-                resolve(filtered);
-            };
-            request.onerror = () => resolve([]);
-        } catch (e) {
-            console.warn("IndexedDB read error:", e);
-            resolve([]);
-        }
-    });
-}
-
-function clearGenerationHistory(uid) {
+function saveServerItemToLocalIndexedDB(item) {
     return new Promise((resolve) => {
         if (!dbConnection) return resolve(false);
         try {
             const transaction = dbConnection.transaction([STORE_NAME], "readwrite");
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.getAll();
-            request.onsuccess = () => {
-                const all = request.result || [];
-                const userItems = all.filter(item => item.uid === uid);
-                userItems.forEach(item => {
-                    store.delete(item.id);
-                });
-                resolve(true);
+            const localItem = {
+                id: item.id,
+                uid: item.uid,
+                prompt: item.prompt,
+                category: item.category,
+                seed: item.seed,
+                imageData: item.imageUrl, // Store Firestore URL directly as imageData
+                timestamp: item.timestamp
             };
-            request.onerror = () => resolve(false);
+            store.put(localItem);
+            resolve(true);
         } catch (e) {
-            console.warn("IndexedDB delete error:", e);
+            console.warn("Failed to write server item to IndexedDB:", e);
             resolve(false);
         }
     });
+}
+
+function saveGenerationToHistory(uid, prompt, category, seed, blob) {
+    const itemId = `${uid}_${Date.now()}`;
+    
+    // Save to local IndexedDB first
+    if (dbConnection) {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+            try {
+                const base64Data = reader.result;
+                const transaction = dbConnection.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const item = {
+                    id: itemId,
+                    uid: uid,
+                    prompt: prompt,
+                    category: category,
+                    seed: seed,
+                    imageData: base64Data,
+                    timestamp: Date.now()
+                };
+                store.put(item);
+                console.log("Successfully saved generation to IndexedDB history.");
+            } catch (e) {
+                console.warn("Failed to write to IndexedDB:", e);
+            }
+        };
+    }
+    
+    // Also save to Firestore & Storage asynchronously
+    saveGenerationToFirestore(uid, itemId, prompt, category, seed, blob);
+}
+
+async function getGenerationHistory(uid) {
+    // 1. Get current local history from IndexedDB
+    let localHistory = [];
+    if (dbConnection) {
+        try {
+            localHistory = await new Promise((resolve) => {
+                const transaction = dbConnection.transaction([STORE_NAME], "readonly");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const all = request.result || [];
+                    const filtered = all
+                        .filter(item => item.uid === uid)
+                        .sort((a, b) => b.timestamp - a.timestamp);
+                    resolve(filtered);
+                };
+                request.onerror = () => resolve([]);
+            });
+        } catch (err) {
+            console.warn("Local IndexedDB read failed:", err);
+        }
+    }
+    
+    // 2. Fetch history from Firestore and sync
+    if (db) {
+        try {
+            const historyCollRef = collection(db, "users", uid, "history");
+            const q = query(historyCollRef, orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            const serverHistory = [];
+            querySnapshot.forEach((doc) => {
+                serverHistory.push(doc.data());
+            });
+            
+            // Sync server items with local IndexedDB if they are missing
+            for (const item of serverHistory) {
+                const exists = localHistory.some(localItem => localItem.id === item.id);
+                if (!exists) {
+                    await saveServerItemToLocalIndexedDB(item);
+                    localHistory.push({
+                        id: item.id,
+                        uid: item.uid,
+                        prompt: item.prompt,
+                        category: item.category,
+                        seed: item.seed,
+                        imageData: item.imageUrl, // use imageUrl for display
+                        timestamp: item.timestamp
+                    });
+                }
+            }
+            
+            // Sort by timestamp descending
+            localHistory.sort((a, b) => b.timestamp - a.timestamp);
+        } catch (err) {
+            console.warn("Failed to fetch history from Firestore:", err);
+        }
+    }
+    
+    return localHistory;
+}
+
+async function clearGenerationHistory(uid) {
+    // 1. Clear local history from IndexedDB
+    if (dbConnection) {
+        try {
+            await new Promise((resolve) => {
+                const transaction = dbConnection.transaction([STORE_NAME], "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const all = request.result || [];
+                    const userItems = all.filter(item => item.uid === uid);
+                    userItems.forEach(item => {
+                        store.delete(item.id);
+                    });
+                    resolve(true);
+                };
+                request.onerror = () => resolve(false);
+            });
+        } catch (err) {
+            console.warn("Local IndexedDB clear failed:", err);
+        }
+    }
+    
+    // 2. Clear history from Firestore
+    if (db) {
+        try {
+            const historyCollRef = collection(db, "users", uid, "history");
+            const querySnapshot = await getDocs(historyCollRef);
+            const batchDeletes = [];
+            querySnapshot.forEach((doc) => {
+                batchDeletes.push(deleteDoc(doc.ref));
+            });
+            await Promise.all(batchDeletes);
+        } catch (err) {
+            console.warn("Failed to clear Firestore history:", err);
+        }
+    }
+    
+    return true;
 }
 
 // ==========================================================================
@@ -373,29 +522,18 @@ function init() {
     initHistoryDB();
     
     // Setup Firebase Auth State Listener
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
             state.isLoggedIn = true;
             state.currentUser = user.displayName || user.email;
-            
-            // Initialize credits for new user
-            const creditKey = `pixelai_credits_${user.uid}`;
-            let userCredits = localStorage.getItem(creditKey);
-            if (userCredits === null) {
-                userCredits = "5";
-                localStorage.setItem(creditKey, userCredits);
-            }
-            state.credits = parseInt(userCredits, 10);
-            
-            // Initialize subscription status
-            const subKey = `pixelai_subscription_${user.uid}`;
-            state.subscriptionStatus = localStorage.getItem(subKey) || "free";
             
             // Show profile navigation link
             if (el.linkProfile) el.linkProfile.classList.remove("hide");
             
             updateNavForUser(state.currentUser);
-            updateCreditsUI();
+            
+            // Sync user data (credits & subscription) with Firestore
+            await syncUserDataWithFirestore(user);
         } else {
             state.isLoggedIn = false;
             state.currentUser = null;
@@ -487,6 +625,12 @@ function init() {
     // Close subscription modal on backdrop click
     safeBind(el.subscriptionModal, "click", (e) => {
         if (e.target === el.subscriptionModal) closeSubscriptionModal();
+    });
+
+    // Welcome Credits Modal listeners
+    safeBind(el.welcomeCreditsCloseBtn, "click", closeWelcomeCreditsPopup);
+    safeBind(el.welcomeCreditsModal, "click", (e) => {
+        if (e.target === el.welcomeCreditsModal) closeWelcomeCreditsPopup();
     });
 
     // Theme Switches
@@ -602,6 +746,109 @@ function updateNavForUser(username) {
     el.btnAuthNav.className = "btn-auth-outline active-session";
 }
 
+// Sync user data (credits & subscription) with Firestore
+async function syncUserDataWithFirestore(user) {
+    let isNewUser = false;
+    if (!db) {
+        // Fallback to localStorage if Firestore failed to initialize
+        const creditKey = `pixelai_credits_${user.uid}`;
+        let userCredits = localStorage.getItem(creditKey);
+        if (userCredits === null) {
+            isNewUser = true;
+            userCredits = "5";
+            localStorage.setItem(creditKey, userCredits);
+        }
+        state.credits = parseInt(userCredits, 10);
+        state.subscriptionStatus = localStorage.getItem(`pixelai_subscription_${user.uid}`) || "free";
+        updateCreditsUI();
+        
+        const welcomeShownKey = `pixelai_welcome_shown_${user.uid}`;
+        if (isNewUser && !localStorage.getItem(welcomeShownKey)) {
+            localStorage.setItem(welcomeShownKey, "true");
+            showWelcomeCreditsPopup();
+        }
+        return;
+    }
+    
+    try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        let localCredits = localStorage.getItem(`pixelai_credits_${user.uid}`);
+        let localSub = localStorage.getItem(`pixelai_subscription_${user.uid}`);
+        
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            // Server data takes priority
+            state.credits = data.credits !== undefined ? data.credits : 5;
+            state.subscriptionStatus = data.subscriptionStatus || "free";
+            
+            // Update local storage to match
+            localStorage.setItem(`pixelai_credits_${user.uid}`, state.credits.toString());
+            localStorage.setItem(`pixelai_subscription_${user.uid}`, state.subscriptionStatus);
+        } else {
+            // First time logging in or no server data, push local data to Firestore
+            isNewUser = true;
+            const creditsToSave = localCredits !== null ? parseInt(localCredits, 10) : 5;
+            const subToSave = localSub || "free";
+            
+            state.credits = creditsToSave;
+            state.subscriptionStatus = subToSave;
+            
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || "",
+                credits: creditsToSave,
+                subscriptionStatus: subToSave,
+                updatedAt: Date.now()
+            });
+            
+            localStorage.setItem(`pixelai_credits_${user.uid}`, creditsToSave.toString());
+            localStorage.setItem(`pixelai_subscription_${user.uid}`, subToSave);
+        }
+    } catch (err) {
+        console.warn("Firestore user sync failed, falling back to localStorage:", err);
+        const creditKey = `pixelai_credits_${user.uid}`;
+        let userCredits = localStorage.getItem(creditKey);
+        if (userCredits === null) {
+            isNewUser = true;
+            userCredits = "5";
+            localStorage.setItem(creditKey, userCredits);
+        }
+        state.credits = parseInt(userCredits, 10);
+        state.subscriptionStatus = localStorage.getItem(`pixelai_subscription_${user.uid}`) || "free";
+    }
+    updateCreditsUI();
+    
+    // Trigger welcome popup
+    const welcomeShownKey = `pixelai_welcome_shown_${user.uid}`;
+    if (isNewUser && !localStorage.getItem(welcomeShownKey)) {
+        localStorage.setItem(welcomeShownKey, "true");
+        showWelcomeCreditsPopup();
+    }
+}
+
+async function updateUserCreditsInFirestore(uid, credits) {
+    if (!db) return;
+    try {
+        const userDocRef = doc(db, "users", uid);
+        await setDoc(userDocRef, { credits, updatedAt: Date.now() }, { merge: true });
+    } catch (err) {
+        console.warn("Failed to update credits in Firestore:", err);
+    }
+}
+
+async function updateUserSubscriptionInFirestore(uid, subscriptionStatus) {
+    if (!db) return;
+    try {
+        const userDocRef = doc(db, "users", uid);
+        await setDoc(userDocRef, { subscriptionStatus, updatedAt: Date.now() }, { merge: true });
+    } catch (err) {
+        console.warn("Failed to update subscription in Firestore:", err);
+    }
+}
+
 // ==========================================================================
 // AUTHENTICATION SUBMIT HANDLERS
 // ==========================================================================
@@ -699,6 +946,38 @@ function closeSubscriptionModal() {
     el.subscriptionModal.classList.add("hide");
 }
 
+let welcomeCreditsTimeout = null;
+
+function showWelcomeCreditsPopup() {
+    if (el.welcomeCreditsModal) {
+        el.welcomeCreditsModal.classList.remove("hide");
+        
+        // Reset the progress bar animation
+        const progressEl = document.getElementById("welcome-credits-progress");
+        if (progressEl) {
+            progressEl.style.animation = 'none';
+            progressEl.offsetHeight; // trigger reflow
+            progressEl.style.animation = 'shrinkProgress 5s linear forwards';
+        }
+        
+        if (welcomeCreditsTimeout) clearTimeout(welcomeCreditsTimeout);
+        
+        welcomeCreditsTimeout = setTimeout(() => {
+            closeWelcomeCreditsPopup();
+        }, 5000);
+    }
+}
+
+function closeWelcomeCreditsPopup() {
+    if (el.welcomeCreditsModal) {
+        el.welcomeCreditsModal.classList.add("hide");
+    }
+    if (welcomeCreditsTimeout) {
+        clearTimeout(welcomeCreditsTimeout);
+        welcomeCreditsTimeout = null;
+    }
+}
+
 function startRazorpayCheckout() {
     if (!state.isLoggedIn || !auth.currentUser) {
         openAuthModal("login");
@@ -746,6 +1025,8 @@ function handleRazorpaySuccess(paymentId) {
     updateCreditsUI();
     closeSubscriptionModal();
     showToast(`Payment successful! ID: ${paymentId}. Welcome to Pro Creator.`, "success");
+    
+    updateUserSubscriptionInFirestore(auth.currentUser.uid, "pro");
 }
 
 function handleCancelSubscription() {
@@ -758,6 +1039,8 @@ function handleCancelSubscription() {
         updateCreditsUI();
         closeSubscriptionModal();
         showToast("Pro subscription cancelled successfully.", "info");
+        
+        updateUserSubscriptionInFirestore(auth.currentUser.uid, "free");
     }
 }
 
@@ -1114,6 +1397,7 @@ function generateImage() {
                 state.credits = Math.max(0, state.credits - 1);
                 localStorage.setItem(`pixelai_credits_${auth.currentUser.uid}`, state.credits.toString());
                 updateCreditsUI();
+                updateUserCreditsInFirestore(auth.currentUser.uid, state.credits);
             }
             
             showToast("Visual generated successfully!", "success");

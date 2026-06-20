@@ -46,6 +46,9 @@ module.exports = async function handler(req, res) {
     htmlContent = htmlContent.replace(/src="images\/2fcc6b7420cbeb0685a89c7a68c635f1\.png"/g, `src="${absoluteOrigin}/email-assets/2fcc6b7420cbeb0685a89c7a68c635f1.png"`);
     htmlContent = htmlContent.replace(/src="images\/343b9a3afd264a9cbed272e60d4851e9\.png"/g, `src="${absoluteOrigin}/email-assets/343b9a3afd264a9cbed272e60d4851e9.png"`);
 
+    // Replace name placeholder in email
+    htmlContent = htmlContent.replace(/{{name}}/g, name || 'Creator');
+
     // Create a Nodemailer transporter using SMTP credentials
     const transporter = nodemailer.createTransport({
       host: smtpHost,
