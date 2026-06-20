@@ -122,7 +122,6 @@ const state = {
     // Auth States
     isLoggedIn: false,
     currentUser: null,
-    isAdmin: false,
     
     // Credits & Subscription States
     credits: 5,
@@ -235,10 +234,7 @@ const el = {
     
     // Welcome Credits Modal Elements
     get welcomeCreditsModal() { return document.getElementById("welcome-credits-modal"); },
-    get welcomeCreditsCloseBtn() { return document.getElementById("welcome-credits-close-btn"); },
-    
-    // Admin Panel Elements
-    get linkAdmin() { return document.getElementById("link-admin"); }
+    get welcomeCreditsCloseBtn() { return document.getElementById("welcome-credits-close-btn"); }
 };
 
 // Category style prompt modifier mappings
@@ -556,11 +552,9 @@ function init() {
             state.currentUser = null;
             state.credits = 0;
             state.subscriptionStatus = "free";
-            state.isAdmin = false;
             
-            // Hide profile and admin navigation links
+            // Hide profile navigation link
             if (el.linkProfile) el.linkProfile.classList.add("hide");
-            if (el.linkAdmin) el.linkAdmin.classList.add("hide");
             
             el.btnAuthNav.textContent = "Sign In";
             el.btnAuthNav.className = "btn-auth-outline";
@@ -788,20 +782,14 @@ function syncUserDataWithFirestore(user) {
             const data = docSnap.data();
             state.credits = data.credits !== undefined ? data.credits : 5;
             state.subscriptionStatus = data.subscriptionStatus || "free";
-            state.isAdmin = data.isAdmin === true || user.email === 'admin@gmail.com';
-            updateAdminUI();
             updateCreditsUI();
         } else {
             // First time logging in or missing server doc, create it with 5 credits
             isNewUser = true;
             try {
-                const isAdminEmail = user.email === 'admin@gmail.com';
-                
                 // Immediately set state.credits to 5 and update UI to avoid race condition/delay
                 state.credits = 5;
                 state.subscriptionStatus = "free";
-                state.isAdmin = isAdminEmail;
-                updateAdminUI();
                 updateCreditsUI();
                 
                 await setDoc(userDocRef, {
@@ -810,7 +798,6 @@ function syncUserDataWithFirestore(user) {
                     displayName: user.displayName || "",
                     credits: 5,
                     subscriptionStatus: "free",
-                    isAdmin: isAdminEmail,
                     createdAt: Date.now(),
                     updatedAt: Date.now()
                 });
@@ -968,14 +955,6 @@ function updateCreditsUI() {
         }
     } else {
         if (el.navUserStats) el.navUserStats.classList.add("hide");
-    }
-}
-
-function updateAdminUI() {
-    if (state.isLoggedIn && state.isAdmin) {
-        if (el.linkAdmin) el.linkAdmin.classList.remove("hide");
-    } else {
-        if (el.linkAdmin) el.linkAdmin.classList.add("hide");
     }
 }
 
