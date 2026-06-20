@@ -238,10 +238,7 @@ const el = {
     get welcomeCreditsCloseBtn() { return document.getElementById("welcome-credits-close-btn"); },
     
     // Admin Panel Elements
-    get linkAdmin() { return document.getElementById("link-admin"); },
-    get viewAdmin() { return document.getElementById("view-admin"); },
-    get adminUsersTable() { return document.getElementById("admin-users-table-body"); },
-    get adminRemainingCredits() { return document.getElementById("admin-remaining-credits"); }
+    get linkAdmin() { return document.getElementById("link-admin"); }
 };
 
 // Category style prompt modifier mappings
@@ -594,7 +591,6 @@ function init() {
     safeBind(el.linkHome, "click", (e) => { e.preventDefault(); switchView("home"); });
     safeBind(el.linkStudio, "click", (e) => { e.preventDefault(); switchView("studio"); });
     safeBind(el.linkProfile, "click", (e) => { e.preventDefault(); switchView("profile"); });
-    safeBind(el.linkAdmin, "click", (e) => { e.preventDefault(); switchView("admin"); });
     safeBind(el.navBrand, "click", () => switchView("home"));
     safeBind(el.heroGetStarted, "click", () => switchView("studio"));
 
@@ -674,12 +670,6 @@ function switchView(viewName) {
         showToast("Authentication required to access this section.", "info");
         return;
     }
-    
-    if (viewName === "admin" && (!state.isLoggedIn || !state.isAdmin)) {
-        switchView("home");
-        showToast("Access denied. Admin authorization required.", "info");
-        return;
-    }
 
     // Close mobile menu when switching views
     toggleMobileMenu(false);
@@ -687,12 +677,10 @@ function switchView(viewName) {
     el.viewHome.classList.add("hide");
     el.viewStudio.classList.add("hide");
     el.viewProfile.classList.add("hide");
-    if (el.viewAdmin) el.viewAdmin.classList.add("hide");
     
     el.linkHome.classList.remove("active");
     el.linkStudio.classList.remove("active");
     el.linkProfile.classList.remove("active");
-    if (el.linkAdmin) el.linkAdmin.classList.remove("active");
 
     if (viewName === "home") {
         el.viewHome.classList.remove("hide");
@@ -704,10 +692,6 @@ function switchView(viewName) {
         el.viewProfile.classList.remove("hide");
         el.linkProfile.classList.add("active");
         renderProfilePage();
-    } else if (viewName === "admin") {
-        el.viewAdmin.classList.remove("hide");
-        el.linkAdmin.classList.add("active");
-        renderAdminPage();
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -990,183 +974,8 @@ function updateCreditsUI() {
 function updateAdminUI() {
     if (state.isLoggedIn && state.isAdmin) {
         if (el.linkAdmin) el.linkAdmin.classList.remove("hide");
-        if (el.adminRemainingCredits) {
-            const isPro = state.subscriptionStatus === "pro";
-            el.adminRemainingCredits.textContent = isPro ? "Unlimited" : `${state.credits} Credits`;
-        }
     } else {
         if (el.linkAdmin) el.linkAdmin.classList.add("hide");
-    }
-}
-
-async function renderAdminPage() {
-    if (!state.isAdmin) return;
-    try {
-        el.adminUsersTable.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px;"><i class="ri-loader-4-line spin"></i> Loading users directory...</td></tr>`;
-        
-        const usersColl = collection(db, "users");
-        const snapshot = await getDocs(usersColl);
-        
-        el.adminUsersTable.innerHTML = "";
-        
-        if (snapshot.empty) {
-            el.adminUsersTable.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">No users registered in the database.</td></tr>`;
-            return;
-        }
-        
-        snapshot.forEach(docSnap => {
-            const userData = docSnap.data();
-            const uid = docSnap.id;
-            
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td><strong>${userData.displayName || 'No Name'}</strong></td>
-                <td>${userData.email || 'No Email'}</td>
-                <td><strong>${userData.credits !== undefined ? userData.credits : 5}</strong></td>
-                <td>
-                    <span class="badge-${userData.subscriptionStatus === 'pro' ? 'pro' : 'free'}">
-                        ${userData.subscriptionStatus === 'pro' ? 'PRO' : 'FREE'}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn-admin-action btn-admin-add" data-uid="${uid}">
-                        <i class="ri-add-line"></i> Add
-                    </button>
-                    <button class="btn-admin-action btn-admin-remove" data-uid="${uid}">
-                        <i class="ri-subtract-line"></i> Remove
-                    </button>
-                    <button class="btn-admin-action btn-admin-toggle" data-uid="${uid}">
-                        <i class="ri-refresh-line"></i> Toggle Plan
-                    </button>
-                </td>
-            `;
-            
-            // Bind actions
-            row.querySelector(".btn-admin-add").addEventListener("click", () => handleAdminAddCredits(uid, userData.email || 'user', userData.credits));
-            row.querySelector(".btn-admin-remove").addEventListener("click", () => handleAdminRemoveCredits(uid, userData.email || 'user', userData.credits));
-            row.querySelector(".btn-admin-toggle").addEventListener("click", () => handleAdminToggleSubscription(uid, userData.subscriptionStatus || 'free'));
-            
-            el.adminUsersTable.appendChild(row);
-        });
-    } catch (err) {
-        console.error("Admin view loading failure:", err);
-        el.adminUsersTable.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #db4437;"><i class="ri-error-warning-line"></i> Failed to query users: ${err.message}</td></tr>`;
-    }
-}
-
-async function handleAdminAddCredits(uid, email, currentCredits = 5) {
-    const amountStr = prompt(`Enter the number of credits you want to ADD to ${email}:`, "10");
-    if (amountStr === null) return; // cancel
-    
-    const amount = parseInt(amountStr, 10);
-    if (isNaN(amount) || amount <= 0) {
-        showToast("Please enter a valid positive number of credits.", "info");
-        return;
-    }
-    
-    showToast("Adding credits...", "info");
-    try {
-        const userRef = doc(db, "users", uid);
-        const transactionCollRef = collection(db, "credit_transactions");
-        const newTxDocRef = doc(transactionCollRef);
-        
-        await runTransaction(db, async (transaction) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) {
-                throw new Error("User does not exist.");
-            }
-            const credits = userDoc.data().credits !== undefined ? userDoc.data().credits : 5;
-            transaction.update(userRef, {
-                credits: credits + amount,
-                updatedAt: Date.now()
-            });
-            transaction.set(newTxDocRef, {
-                userId: uid,
-                action: "admin_add_credits",
-                creditsUsed: -amount, // Negative indicates refund / balance increment
-                timestamp: Date.now()
-            });
-        });
-        showToast(`Successfully added ${amount} credits to ${email}`, "success");
-        renderAdminPage();
-    } catch (err) {
-        console.error("Admin add credits transaction failure:", err);
-        showToast(`Failed to add credits: ${err.message}`, "info");
-    }
-}
-
-async function handleAdminRemoveCredits(uid, email, currentCredits = 5) {
-    const amountStr = prompt(`Enter the number of credits you want to REMOVE from ${email}:`, "10");
-    if (amountStr === null) return; // cancel
-    
-    const amount = parseInt(amountStr, 10);
-    if (isNaN(amount) || amount <= 0) {
-        showToast("Please enter a valid positive number of credits.", "info");
-        return;
-    }
-    
-    showToast("Removing credits...", "info");
-    try {
-        const userRef = doc(db, "users", uid);
-        const transactionCollRef = collection(db, "credit_transactions");
-        const newTxDocRef = doc(transactionCollRef);
-        
-        await runTransaction(db, async (transaction) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) {
-                throw new Error("User does not exist.");
-            }
-            const credits = userDoc.data().credits !== undefined ? userDoc.data().credits : 5;
-            const newCredits = Math.max(0, credits - amount);
-            
-            transaction.update(userRef, {
-                credits: newCredits,
-                updatedAt: Date.now()
-            });
-            transaction.set(newTxDocRef, {
-                userId: uid,
-                action: "admin_remove_credits",
-                creditsUsed: credits - newCredits, // Positive represents cost/deduction
-                timestamp: Date.now()
-            });
-        });
-        showToast(`Successfully removed credits from ${email}`, "success");
-        renderAdminPage();
-    } catch (err) {
-        console.error("Admin remove credits transaction failure:", err);
-        showToast(`Failed to remove credits: ${err.message}`, "info");
-    }
-}
-
-async function handleAdminToggleSubscription(uid, currentStatus = "free") {
-    const newStatus = currentStatus === "pro" ? "free" : "pro";
-    showToast(`Toggling plan to ${newStatus.toUpperCase()}...`, "info");
-    try {
-        const userRef = doc(db, "users", uid);
-        const transactionCollRef = collection(db, "credit_transactions");
-        const newTxDocRef = doc(transactionCollRef);
-        
-        await runTransaction(db, async (transaction) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists()) {
-                throw new Error("User does not exist.");
-            }
-            transaction.update(userRef, {
-                subscriptionStatus: newStatus,
-                updatedAt: Date.now()
-            });
-            transaction.set(newTxDocRef, {
-                userId: uid,
-                action: `admin_toggle_sub_${newStatus}`,
-                creditsUsed: 0,
-                timestamp: Date.now()
-            });
-        });
-        showToast(`Successfully toggled subscription for user to ${newStatus.toUpperCase()}`, "success");
-        renderAdminPage();
-    } catch (err) {
-        console.error("Admin toggle subscription transaction failure:", err);
-        showToast(`Failed to toggle plan: ${err.message}`, "info");
     }
 }
 
