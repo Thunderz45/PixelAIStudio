@@ -826,6 +826,42 @@ body {
     .btn-upgrade-pricing {
         justify-content: center;
     }
+    
+    /* Responsive Modals and Plan Cards overrides */
+    .modal-backdrop {
+        padding: 20px 10px;
+    }
+    
+    .auth-card {
+        padding: 28px 20px;
+        border-radius: 16px;
+    }
+    
+    .plan-card {
+        padding: 16px;
+    }
+    
+    .plan-price {
+        font-size: 1.5rem;
+        margin-bottom: 12px;
+    }
+    
+    .plan-features {
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .sub-header {
+        margin-bottom: 16px;
+    }
+    
+    .sub-header h2 {
+        font-size: 1.35rem;
+    }
+    
+    .sub-header p {
+        font-size: 0.8rem;
+    }
 }
 
 /* ==========================================================================
@@ -1014,9 +1050,10 @@ body {
     -webkit-backdrop-filter: blur(8px);
     z-index: 10000;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding: 20px;
+    padding: 40px 20px;
+    overflow-y: auto;
     animation: backdropFadeIn 0.25s forwards;
 }
 
@@ -1038,6 +1075,7 @@ body {
     flex-direction: column;
     align-items: center;
     animation: modalSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    margin: auto;
 }
 
 @keyframes modalSlideDown {
