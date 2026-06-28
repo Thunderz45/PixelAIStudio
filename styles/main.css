@@ -2,30 +2,34 @@
    PixelAI Studio - Google AI Professional Styling
    ========================================================================= */
 :root {
-    --bg-primary: #f0f4f9; /* Workspace background */
-    --bg-secondary: #ffffff; /* Card and input background */
-    --text-primary: #1f1f1f; /* Primary charcoal text */
-    --text-secondary: #444746; /* Secondary grey label */
+    --bg-primary: #f0f4f9;
+    /* Workspace background */
+    --bg-secondary: #ffffff;
+    /* Card and input background */
+    --text-primary: #1f1f1f;
+    /* Primary charcoal text */
+    --text-secondary: #444746;
+    /* Secondary grey label */
     --text-muted: #5f6368;
-    
+
     --google-blue: #1a73e8;
     --google-blue-hover: #1b66ca;
     --google-blue-bg: #e8f0fe;
-    
+
     --border-neutral: #dadce0;
     --border-active: #1a73e8;
-    
+
     --pixelai-gradient: linear-gradient(74deg, #0ea5e9 0%, #9b72cb 18%, #d96570 38%, #38bdf8 68%, #b47ae5 100%);
     --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.05);
-    
+
     --font-heading: 'Outfit', 'Google Sans', sans-serif;
     --font-body: 'Inter', 'Roboto', sans-serif;
-    
+
     --radius-sm: 8px;
     --radius-md: 16px;
     --radius-lg: 24px;
     --radius-full: 100px;
-    
+
     --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -110,13 +114,18 @@ body {
 .logo-icon {
     width: 44px;
     height: 44px;
-    border-radius: 14px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 1.45rem;
+    overflow: hidden;
     box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.logo-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .pixelai-gradient {
@@ -126,9 +135,17 @@ body {
 }
 
 @keyframes rotateGradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .logo-text h1 {
@@ -196,7 +213,8 @@ body {
 }
 
 .textarea-wrapper {
-    background: #f0f4f9; /* Google input light background */
+    background: #f0f4f9;
+    /* Google input light background */
     border: 1px solid transparent;
     border-radius: 20px;
     transition: var(--transition);
@@ -293,7 +311,7 @@ body {
 
 .btn-generate:hover:not(:disabled) {
     background: var(--google-blue-hover);
-    box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px rgba(60,64,67,0.15);
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3), 0 4px 8px rgba(60, 64, 67, 0.15);
 }
 
 .btn-generate:disabled {
@@ -363,14 +381,19 @@ body {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, rgba(240,244,249,0) 0%, rgba(168,199,250,0.2) 50%, rgba(240,244,249,0) 100%);
+    background: linear-gradient(90deg, rgba(240, 244, 249, 0) 0%, rgba(168, 199, 250, 0.2) 50%, rgba(240, 244, 249, 0) 100%);
     background-size: 200% 100%;
     animation: loadingWave 1.4s infinite linear;
 }
 
 @keyframes loadingWave {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 .spinner {
@@ -384,7 +407,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Error State */
@@ -408,8 +433,15 @@ body {
 }
 
 @keyframes zoomReveal {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Action button bar */
@@ -501,7 +533,7 @@ body {
 }
 
 .info-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     border-color: #c4c7c5;
 }
 
@@ -589,7 +621,7 @@ body {
         padding: 20px 12px;
         gap: 20px;
     }
-    
+
     .app-header {
         flex-direction: row;
         justify-content: space-between;
@@ -597,25 +629,25 @@ body {
         padding-bottom: 12px;
         width: 100%;
     }
-    
+
     .studio-card {
         grid-template-columns: 1fr;
         padding: 24px 20px;
         gap: 24px;
     }
-    
+
     .btn-generate {
         width: 100%;
     }
-    
+
     .action-buttons {
         flex-direction: column;
     }
-    
+
     .info-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .info-section {
         padding: 20px;
     }
@@ -665,8 +697,15 @@ body {
 }
 
 @keyframes viewFadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ==========================================================================
@@ -694,7 +733,7 @@ body {
     font-size: 0.8rem;
     font-weight: 500;
     color: var(--google-blue);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .hero-title {
@@ -795,7 +834,7 @@ body {
     .showcase-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .hero-title {
         font-size: 2.2rem;
     }
@@ -805,7 +844,7 @@ body {
     .showcase-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .hero-title {
         font-size: 1.8rem;
     }
@@ -818,47 +857,47 @@ body {
         text-align: center;
         padding: 14px 16px;
     }
-    
+
     .dashboard-metrics {
         justify-content: center;
     }
-    
+
     .btn-upgrade-pricing {
         justify-content: center;
     }
-    
+
     /* Responsive Modals and Plan Cards overrides */
     .modal-backdrop {
         padding: 20px 10px;
     }
-    
+
     .auth-card {
         padding: 28px 20px;
         border-radius: 16px;
     }
-    
+
     .plan-card {
         padding: 16px;
     }
-    
+
     .plan-price {
         font-size: 1.5rem;
         margin-bottom: 12px;
     }
-    
+
     .plan-features {
         gap: 8px;
         margin-bottom: 16px;
     }
-    
+
     .sub-header {
         margin-bottom: 16px;
     }
-    
+
     .sub-header h2 {
         font-size: 1.35rem;
     }
-    
+
     .sub-header p {
         font-size: 0.8rem;
     }
@@ -903,7 +942,7 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
 /* ==========================================================================
@@ -959,8 +998,13 @@ body {
 }
 
 @keyframes pulseText {
-    from { opacity: 0.6; }
-    to { opacity: 1; }
+    from {
+        opacity: 0.6;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* ==========================================================================
@@ -1008,13 +1052,27 @@ body {
 }
 
 @keyframes slideInToast {
-    from { transform: translateX(120%) scale(0.9); opacity: 0; }
-    to { transform: translateX(0) scale(1); opacity: 1; }
+    from {
+        transform: translateX(120%) scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
 }
 
 @keyframes fadeOutToast {
-    from { transform: translateX(0) scale(1); opacity: 1; }
-    to { transform: translateX(120%) scale(0.9); opacity: 0; }
+    from {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(120%) scale(0.9);
+        opacity: 0;
+    }
 }
 
 /* ==========================================================================
@@ -1058,8 +1116,13 @@ body {
 }
 
 @keyframes backdropFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .auth-card {
@@ -1079,8 +1142,15 @@ body {
 }
 
 @keyframes modalSlideDown {
-    from { transform: translateY(-30px) scale(0.95); opacity: 0; }
-    to { transform: translateY(0) scale(1); opacity: 1; }
+    from {
+        transform: translateY(-30px) scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 .modal-close-btn {
@@ -1116,6 +1186,19 @@ body {
     color: white;
     font-size: 1.5rem;
     margin-bottom: 20px;
+}
+
+.auth-header-logo.logo-circle {
+    border-radius: 50%;
+    overflow: hidden;
+    background: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.auth-header-logo.logo-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .auth-card h2 {
@@ -1253,7 +1336,7 @@ body {
 .btn-google-submit:hover {
     background: #f8f9fa;
     border-color: #c4c7c5;
-    box-shadow: 0 1px 2px rgba(60,64,67,0.3);
+    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3);
 }
 
 .btn-google-submit i {
@@ -1319,7 +1402,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .dashboard-info {
@@ -1424,7 +1507,7 @@ body {
 
 .plan-card.active {
     border-color: #c4c7c5;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
 .plan-card.pro-card {
@@ -1552,8 +1635,15 @@ body {
 }
 
 @keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(20px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .checkout-back-btn {
@@ -1667,11 +1757,11 @@ body.dark-theme {
     .btn-menu-toggle {
         display: flex;
     }
-    
+
     .btn-menu-close {
         display: block;
     }
-    
+
     .nav-links {
         position: fixed;
         top: 0;
@@ -1688,30 +1778,30 @@ body.dark-theme {
         transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         gap: 20px;
     }
-    
+
     .nav-links.open {
         right: 0;
     }
-    
+
     .nav-links .nav-link {
         font-size: 1.1rem;
         padding: 10px 14px;
         border-radius: var(--radius-sm);
         border-bottom: none !important;
     }
-    
+
     .nav-links .nav-link.active {
         background-color: var(--google-blue-bg);
         color: var(--google-blue) !important;
     }
-    
+
     .nav-links .nav-user-stats {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
         margin: 10px 0;
     }
-    
+
     .nav-links .btn-auth-outline {
         width: 100%;
         text-align: center;
@@ -1745,7 +1835,10 @@ body.dark-theme {
     gap: 24px;
 }
 
-.profile-card, .theme-card, .settings-card, .history-card {
+.profile-card,
+.theme-card,
+.settings-card,
+.history-card {
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-neutral);
     border-radius: var(--radius-md);
@@ -2020,7 +2113,7 @@ body.dark-theme .btn-clear-history:hover {
         flex-direction: column;
         align-items: stretch;
     }
-    
+
     .profile-sidebar {
         width: 100%;
     }
@@ -2057,6 +2150,7 @@ body.dark-theme .btn-clear-history:hover {
     from {
         transform: scaleX(1);
     }
+
     to {
         transform: scaleX(0);
     }
@@ -2066,5 +2160,3 @@ body.dark-theme .btn-clear-history:hover {
     font-size: 0.75rem;
     color: var(--text-muted);
 }
-
-

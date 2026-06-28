@@ -1034,7 +1034,7 @@ function startRazorpayCheckout() {
         "key": "rzp_test_T3eWLzmc2b5Cbc",
         "amount": "10000", // ₹100 = 10000 Paise
         "currency": "INR",
-        "name": "PixelAI Studio",
+        "name": "Pixel Canvas",
         "description": "Pro Creator Subscription Plan",
         "image": "https://cdn.jsdelivr.net/npm/remixicon@3.5.0/icons/logos/google-fill.svg",
         "handler": function (response) {
@@ -1177,7 +1177,7 @@ function downloadBase64Image(base64Data, prompt, seed) {
             .substring(0, 30)
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-");
-        link.download = `pixelai-studio-${cleanPrompt}-${seed || 'history'}.jpg`;
+        link.download = `pixel-canvas-${cleanPrompt}-${seed || 'history'}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1529,7 +1529,7 @@ async function downloadImage() {
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-");
             
-        link.download = `pixelai-studio-${cleanPrompt}-${state.seed}.jpg`;
+        link.download = `pixel-canvas-${cleanPrompt}-${state.seed}.jpg`;
         document.body.appendChild(link);
         link.click();
         

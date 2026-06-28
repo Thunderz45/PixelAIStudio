@@ -62,9 +62,9 @@ module.exports = async function handler(req, res) {
 
     // Send mail
     const mailOptions = {
-      from: `"PixelAI Studio" <${smtpUser}>`,
+      from: `"Pixel Canvas" <${smtpUser}>`,
       to: email,
-      subject: `Welcome to PixelAI Studio, ${name || 'Creator'}!`,
+      subject: `Welcome to Pixel Canvas, ${name || 'Creator'}!`,
       html: htmlContent
     };
 
